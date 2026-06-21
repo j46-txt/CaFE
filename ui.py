@@ -14,7 +14,7 @@ def build_ui():
     # Global styles override
     ui.add_head_html('''
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght=0,400;0,700;1,400;1,700&display=swap');
         
         * {
             font-family: 'Courier Prime', monospace !important;
@@ -115,6 +115,9 @@ def build_ui():
         }
     </style>
     ''')
+
+    # Native reactive page title element to intercept and override main.py dynamically
+    tab_title = ui.page_title()
 
     cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0}
     
@@ -345,8 +348,8 @@ def build_ui():
         timer_label.text = focus_timer.display_time[cite: 1]
 
         # --- Minimalist Browser Tab Title Engine ---
-        # Excludes "FocusFlow" entirely, outputting clean blocks like "(25:00) Focus" or "(00:14) Stopwatch"
-        ui.run_javascript(f'document.title = "({focus_timer.display_time}) {mode_label}"')
+        # Excludes "FocusFlow" entirely, outputting clean blocks like "(25:00) Focus" or "(00:14) Stopwatch" via native state tracking[cite: 1]
+        tab_title.text = f"({focus_timer.display_time}) {mode_label}"
 
         skip_btn.set_visibility(is_break)[cite: 1]
         reset_btn.set_visibility(is_pomo_mode and status != 'idle')[cite: 1]
