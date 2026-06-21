@@ -35,3 +35,17 @@ Before starting, make sure you have **Python** installed on your system. If you 
 Copy and paste the following command into your terminal window and press Enter to automatically download the visual interface components:
 ```bash
 pip install "nicegui>=1.4.0" "psycopg2-binary>=2.9.0"
+```
+
+### Step 3: Lauch the Application
+Start the application tracking server by running this command:
+```bash
+python main.py
+```
+
+### Step 4: Open in Your Web Browser
+Once the server is running, open any web browser (Chrome, Edge, Safari, or Firefox) and visit the following local address:
+```bash
+http://localhost:8080
+```
+The interface will load instantly, running entirely on your local machine using an automatic internal database.
