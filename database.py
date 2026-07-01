@@ -153,8 +153,7 @@ def get_db():
         conn = sqlite3.connect(DB_PATH, timeout=30.0)
         conn.row_factory = sqlite3.Row
         
-        # Enforcing WAL mode here guarantees concurrent read-write capabilities on every active session thread.
-        conn.execute('PRAGMA journal_mode=WAL;')
+        # Enforcing synchronous=NORMAL here guarantees concurrent read-write stability.
         conn.execute('PRAGMA synchronous=NORMAL;')
         
         yield conn
@@ -189,6 +188,9 @@ def init_db():
     load_cloud_backup()
     
     with get_db() as db:
+        # Enforce WAL mode persistently on the database file during initialization
+        db.execute('PRAGMA journal_mode=WAL;')
+        
         db.execute('''
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
