@@ -1,12 +1,49 @@
 # ui.py
 # -*- coding: utf-8 -*-
-from nicegui import ui
+import asyncio
 import datetime
+from nicegui import app, ui
 from timer import FocusTimer
 import subjects
 import statistics
 import settings
 import database
+
+# Centralized global state to prevent multi-tab/refresh desynchronization and race conditions
+cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0}
+
+def global_on_session_complete(duration_seconds: int, mode: str):
+    global cached_stats
+    active_sub = subjects.get_active_subject()
+    if active_sub:
+        statistics.record_session(active_sub.id, duration_seconds, mode)
+    cached_stats = statistics.get_stats()
+
+def global_on_timer_end(mode: str):
+    # Using respond=False allows fire-and-forget broadcasting without requiring an active specific page context
+    if mode == 'pomodoro':
+        ui.run_javascript("const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.5);", respond=False)
+    elif mode == 'break':
+        ui.run_javascript("const ctx = new (window.AudioContext || window.webkitAudioContext)(); [0, 0.2].forEach(t => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(440, ctx.currentTime + t); gain.gain.setValueAtTime(0.05, ctx.currentTime + t); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.15); osc.connect(gain); gain.connect(ctx.destination); osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + 0.15); });", respond=False)
+
+focus_timer = FocusTimer(on_tick=lambda: None, on_complete=global_on_session_complete, on_timer_end=global_on_timer_end)
+
+# Single global background ticker driving the timer state precisely
+async def global_timer_ticker():
+    while True:
+        await asyncio.sleep(1.0)
+        focus_timer.tick()
+
+app.on_startup(global_timer_ticker)
+
+def load_initial_stats():
+    global cached_stats
+    try:
+        cached_stats = statistics.get_stats()
+    except Exception:
+        pass
+
+app.on_startup(load_initial_stats)
 
 def build_ui():
     """Builds the main user interface layout."""
@@ -116,10 +153,8 @@ def build_ui():
     </style>
     ''')
 
-    cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0}
-    
     def refresh_cached_stats():
-        nonlocal cached_stats
+        global cached_stats
         cached_stats = statistics.get_stats()
 
     def get_greeting() -> str:
@@ -185,7 +220,6 @@ def build_ui():
                         subjects.add_subject(new_name.value, int(new_weight.value) if new_weight.value else 1)
                         new_name.value = ''
                         rebuild_management_view()
-                        reload_subjects()
                         update_display()
                 ui.button('Add', on_click=quick_add).classes('mono-btn text-xs py-1')
 
@@ -194,13 +228,11 @@ def build_ui():
             def trigger_update(s_id, name_val, weight_val):
                 subjects.update_subject(s_id, name_val, int(weight_val) if weight_val else 1)
                 rebuild_management_view()
-                reload_subjects()
                 update_display()
 
             def trigger_delete(s_id):
                 subjects.delete_subject(s_id)
                 rebuild_management_view()
-                reload_subjects()
                 update_display()
             
             def rebuild_management_view():
@@ -307,6 +339,7 @@ def build_ui():
             focus_timer.start()
         elif status == 'running':
             focus_timer.pause()
+        update_display()
 
     def download_csv_log():
         csv_data = statistics.export_history_csv()
@@ -327,10 +360,9 @@ def build_ui():
         is_stopwatch = focus_timer.state.mode == 'stopwatch'
         is_break = focus_timer.state.mode == 'break'
 
-        # Proportional padding and symmetric line-height centering fix for Courier Prime
         if focus_timer.state.mode == 'pomodoro':
             timer_status_label.text = 'Focus'
-            timer_status_label.style('color: #38bdf8; background-color: rgba(56, 189, 248, 0.06); border: 0.5px solid #38bdf8; padding: 3px 6px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; border-radius: 2px; line-height: 1.1 anisotropy;')
+            timer_status_label.style('color: #38bdf8; background-color: rgba(56, 189, 248, 0.06); border: 0.5px solid #38bdf8; padding: 3px 6px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; border-radius: 2px; line-height: 1.1;')
             timer_status_label.set_visibility(True)
             mode_label = 'Focus'
         elif focus_timer.state.mode == 'break':
@@ -344,8 +376,7 @@ def build_ui():
 
         timer_label.text = focus_timer.display_time
 
-        # --- Minimalist Browser Tab Title Engine ---
-        # Natively updates the page title on every tick via WebSocket, enforcing pure formatting like "(25:00) Focus"
+        # Minimalist Browser Tab Title Engine
         ui.page_title(f"({focus_timer.display_time}) {mode_label}")
 
         skip_btn.set_visibility(is_break)
@@ -354,6 +385,10 @@ def build_ui():
 
         if status == 'idle':
             mode_toggle.enable()
+            if focus_timer.state.mode == 'pomodoro':
+                mode_toggle.value = 'Pomodoro'
+            elif focus_timer.state.mode == 'stopwatch':
+                mode_toggle.value = 'Stopwatch'
         else:
             mode_toggle.disable()
 
@@ -400,22 +435,7 @@ def build_ui():
         focus_days_label.update()
         suggestion_val_label.update()
 
-    def on_session_complete(duration_seconds: int, mode: str):
-        active_sub = subjects.get_active_subject()
-        if active_sub:
-            statistics.record_session(active_sub.id, duration_seconds, mode)
-        refresh_cached_stats()
-        update_display()
-        
-    def on_timer_end(mode: str):
-        if mode == 'pomodoro':
-            ui.run_javascript("const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.5);")
-        elif mode == 'break':
-            ui.run_javascript("const ctx = new (window.AudioContext || window.webkitAudioContext)(); [0, 0.2].forEach(t => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(440, ctx.currentTime + t); gain.gain.setValueAtTime(0.05, ctx.currentTime + t); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.15); osc.connect(gain); gain.connect(ctx.destination); osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + 0.15); });")
-
     subjects.ensure_daily_rotation()
-    focus_timer = FocusTimer(on_tick=update_display, on_complete=on_session_complete, on_timer_end=on_timer_end)
-    refresh_cached_stats()
     
     def update_clock():
         now = datetime.datetime.now()
@@ -424,7 +444,6 @@ def build_ui():
         update_display()
 
     ui.timer(1.0, update_clock)
-    ui.timer(1.0, focus_timer.tick)
 
     # --- Main view layout structure ---
     with ui.column().classes('w-full max-w-4xl mx-auto p-4 gap-4').style('background-color: #000000;'):
@@ -487,8 +506,8 @@ def build_ui():
                 
                 mode_toggle = ui.toggle(
                     ['Pomodoro', 'Stopwatch'],
-                    value='Pomodoro',
-                    on_change=lambda e: focus_timer.set_mode(e.value)
+                    value=focus_timer.state.mode.capitalize(),
+                    on_change=lambda e: (focus_timer.set_mode(e.value), update_display())
                 ).classes('large-toggle mt-1').props('dense unevaluated flat')
                 
                 with ui.column().classes('w-full items-center mt-1'):
@@ -496,14 +515,14 @@ def build_ui():
                     
                     with ui.row().classes('gap-4 h-10 items-center justify-center w-full'):
                         start_pause_btn = ui.button(on_click=toggle_start_pause).classes('mono-btn').props('flat round size=md')
-                        reset_btn = ui.button(on_click=focus_timer.reset).classes('mono-btn').props('flat round icon=refresh size=md')
-                        stop_btn = ui.button(on_click=focus_timer.stop).classes('mono-btn').props('flat round icon=stop size=md')
+                        reset_btn = ui.button(on_click=lambda: (focus_timer.reset(), update_display())).classes('mono-btn').props('flat round icon=refresh size=md')
+                        stop_btn = ui.button(on_click=lambda: (focus_timer.stop(), update_display())).classes('mono-btn').props('flat round icon=stop size=md')
 
                 with ui.row().classes('w-full items-center gap-1.5 mt-auto pt-2').style('border-top: 1px solid #141414;'):
                     ui.label("Today:").classes('text-xs uppercase tracking-wider text-neutral-500')
                     today_label = ui.label('0h 0m').classes('text-xs text-neutral-300')
 
-                skip_btn = ui.label('Skip Break »').on('click', focus_timer.skip).classes('absolute bottom-2 right-4 cursor-pointer text-xs text-neutral-600 hover:text-white uppercase tracking-wider transition-colors')
+                skip_btn = ui.label('Skip Break »').on('click', lambda: (focus_timer.skip(), update_display())).classes('absolute bottom-2 right-4 cursor-pointer text-xs text-neutral-600 hover:text-white uppercase tracking-wider transition-colors')
 
     update_clock()
     update_display()
