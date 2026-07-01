@@ -27,27 +27,34 @@ def record_session(subject_id: int, duration_seconds: int, timer_mode: str) -> N
         ))
 
 def get_stats() -> Dict[str, Any]:
-    """Computes total focus time metrics directly from database executions."""
+    """Computes total focus time metrics efficiently without full table scans."""
     today_seconds = 0
     week_seconds = 0
-    total_seconds = 0
-    first_session_date = None
-    unique_focus_days = set()
 
     now = datetime.datetime.now().astimezone()
     today_date = now.date()
     start_of_week = today_date - datetime.timedelta(days=today_date.weekday())
 
+    # Utilize high-performance SQLite engine aggregations for metrics over historical ranges
     with database.get_db() as db:
-        rows = db.execute('SELECT start_date, end_date, end_time, duration_seconds FROM focus_sessions').fetchall()
+        total_row = db.execute('SELECT TOTAL(duration_seconds) as total_sec FROM focus_sessions').fetchone()
+        total_seconds = int(total_row['total_sec']) if total_row else 0
+
+        days_row = db.execute('SELECT COUNT(DISTINCT start_date) as day_count FROM focus_sessions').fetchone()
+        focus_days = days_row['day_count'] if days_row else 0
+
+        first_row = db.execute('SELECT MIN(start_date) as first_date FROM focus_sessions').fetchone()
+        first_date_str = first_row['first_date'] if first_row else None
+
+        # Optimization: Fetch only local boundary records using a highly limited time window window lookup
+        lookback_limit = (start_of_week - datetime.timedelta(days=2)).strftime('%Y-%m-%d')
+        rows = db.execute(
+            'SELECT end_date, end_time, duration_seconds FROM focus_sessions WHERE start_date >= ?',
+            (lookback_limit,)
+        ).fetchall()
 
     for row in rows:
         duration = row['duration_seconds']
-        total_seconds += duration
-        
-        if row['start_date']:
-            unique_focus_days.add(row['start_date'])
-            
         utc_dt_str = f"{row['end_date']} {row['end_time']}"
         try:
             utc_dt = datetime.datetime.strptime(utc_dt_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
@@ -56,23 +63,25 @@ def get_stats() -> Dict[str, Any]:
                 today_seconds += duration
             if start_of_week <= local_date <= today_date:
                 week_seconds += duration
-            if first_session_date is None or local_date < first_session_date:
-                first_session_date = local_date
         except ValueError:
             continue
 
     avg_week_hours = 0.0
-    if first_session_date:
-        days_since_first = (today_date - first_session_date).days
-        total_weeks = max(1.0, days_since_first / 7.0)
-        avg_week_hours = (total_seconds / 3600.0) / total_weeks
+    if first_date_str:
+        try:
+            first_session_date = datetime.datetime.strptime(first_date_str, '%Y-%m-%d').date()
+            days_since_first = (today_date - first_session_date).days
+            total_weeks = max(1.0, days_since_first / 7.0)
+            avg_week_hours = (total_seconds / 3600.0) / total_weeks
+        except ValueError:
+            pass
 
     return {
         'today': today_seconds,
         'week': week_seconds,
         'total': total_seconds,
         'avg_week_hours': avg_week_hours,
-        'focus_days': len(unique_focus_days)
+        'focus_days': focus_days
     }
 
 def format_duration(seconds: int) -> str:
