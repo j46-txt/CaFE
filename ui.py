@@ -11,6 +11,7 @@ import database
 
 # Centralized global state to prevent multi-tab/refresh desynchronization and race conditions
 cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0}
+active_clients = set()
 
 def global_on_session_complete(duration_seconds: int, mode: str):
     global cached_stats
@@ -45,6 +46,18 @@ app.on_startup(load_initial_stats)
 
 def build_ui():
     """Builds the main user interface layout."""
+    global active_clients
+    
+    # Track page presence to freeze and flush data on tab close
+    client_id = ui.context.client.id
+    active_clients.add(client_id)
+    
+    def on_disconnect():
+        active_clients.discard(client_id)
+        if not active_clients:
+            focus_timer.handle_disconnect()
+            
+    ui.context.client.on_disconnect(on_disconnect)
     
     ui.add_head_html('''
     <style>
@@ -255,11 +268,9 @@ def build_ui():
         with ui.dialog() as dialog, ui.card().classes('w-[420px] rounded-none p-4 mono-card'):
             ui.label('Information').classes('text-xs text-white uppercase tracking-wider mb-3 w-full pb-1 mono-divider')
             
-            # Optimized didactic English information metrics
-            ui.label('• CaFE Cycle: Automated Focus/Break loop. Advances cleanly on its own.').classes('text-xs text-neutral-400 mb-2 leading-relaxed')
-            ui.label('• Cloud Sync: Local session logs mirror to Neon instantly via background worker threads.').classes('text-xs text-neutral-400 mb-2 leading-relaxed')
-            ui.label('• Smart Rotation: Task suggestions swap on your first launch past midnight without breaking workflows.').classes('text-xs text-neutral-400 mb-2 leading-relaxed')
-            ui.label('• Core Security: Engine runs server-side. Page refreshes or multi-tabs will never desync your timer.').classes('text-xs text-neutral-400 mb-4 leading-relaxed')
+            ui.label('• CaFE Mode: Operating loop alternates between Focus and Break intervals, with an alternative Stopwatch mode. During rest periods, a contextual "Skip Break »" shortcut activates at the bottom right.').classes('text-xs text-neutral-400 mb-3 leading-relaxed')
+            ui.label('• Smart Rotation: Daily task suggestions are generated using a weighted, non-repeating random shuffle. This selection rolls over only on your first app launch past midnight to safeguard active sessions.').classes('text-xs text-neutral-400 mb-3 leading-relaxed')
+            ui.label('• Accurate Logs: Metrics update live on every tick. Session data is instantly compiled and flushed into the database upon pause, stop, or tab closure, blocking any automated phantom time accumulation.').classes('text-xs text-neutral-400 mb-4 leading-relaxed')
             
             with ui.column().classes('w-full pt-2.5 mt-1 gap-1 text-[11px] text-neutral-500').style('border-top: 1px solid #141414;'):
                 with ui.row().classes('items-center gap-2 hover:text-white transition-colors cursor-pointer').on('click', lambda: ui.navigate.to('https://github.com/j46-txt/CaFE', new_tab=True)):
@@ -385,11 +396,8 @@ def build_ui():
             mode_toggle.disable()
 
         active_focus_seconds = 0
-        if status in ('running', 'paused'):
-            if focus_timer.state.mode == 'pomodoro':
-                active_focus_seconds = focus_timer.pomodoro_duration - focus_timer.state.seconds_remaining
-            elif focus_timer.state.mode == 'stopwatch':
-                active_focus_seconds = focus_timer.state.seconds_elapsed
+        if status == 'running':
+            active_focus_seconds = focus_timer.state.seconds_focused_in_turn
 
         goal_hours = settings.get_weekly_goal_hours()
         goal_seconds = goal_hours * 3600
