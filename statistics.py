@@ -45,7 +45,6 @@ def get_stats() -> Dict[str, Any]:
         duration = row['duration_seconds']
         total_seconds += duration
         
-        # Tracks unique calendar days where a session was recorded
         if row['start_date']:
             unique_focus_days.add(row['start_date'])
             
@@ -82,6 +81,7 @@ def format_duration(seconds: int) -> str:
     return f"{hours}h {minutes}m"
 
 def export_history_csv() -> bytes:
+    """Exports logs by properly translating UTC database strings into the user's local timezone."""
     with database.get_db() as db:
         rows = db.execute('''
             SELECT fs.start_date, fs.start_time, fs.end_date, fs.end_time, 
@@ -97,10 +97,37 @@ def export_history_csv() -> bytes:
     
     for row in rows:
         try:
-            dt = datetime.datetime.strptime(row['start_date'], '%Y-%m-%d')
-            weekday = dt.strftime('%A')
-        except ValueError:
+            # Reconstruct and shift start timestamp from UTC to Local Timezone
+            start_utc_str = f"{row['start_date']} {row['start_time']}"
+            start_utc = datetime.datetime.strptime(start_utc_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
+            start_local = start_utc.astimezone()
+            
+            # Reconstruct and shift end timestamp from UTC to Local Timezone
+            end_utc_str = f"{row['end_date']} {row['end_time']}"
+            end_utc = datetime.datetime.strptime(end_utc_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
+            end_local = end_utc.astimezone()
+            
+            start_date_str = start_local.strftime('%Y-%m-%d')
+            start_time_str = start_local.strftime('%H:%M:%S')
+            end_date_str = end_local.strftime('%Y-%m-%d')
+            end_time_str = end_local.strftime('%H:%M:%S')
+            weekday = start_local.strftime('%A')
+        except (ValueError, TypeError):
+            start_date_str = row['start_date']
+            start_time_str = row['start_time']
+            end_date_str = row['end_date']
+            end_time_str = row['end_time']
             weekday = 'Unknown'
-        writer.writerow([row['subject_name'] or "Deleted Subject", row['start_date'], row['start_time'], row['end_date'], row['end_time'], row['duration_seconds'], row['timer_mode'], weekday])
+            
+        writer.writerow([
+            row['subject_name'] or "Deleted Subject", 
+            start_date_str, 
+            start_time_str, 
+            end_date_str, 
+            end_time_str, 
+            row['duration_seconds'], 
+            row['timer_mode'], 
+            weekday
+        ])
         
     return output.getvalue().encode('utf-8')
