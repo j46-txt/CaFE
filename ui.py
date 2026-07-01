@@ -28,10 +28,19 @@ def global_on_session_complete(duration_seconds: int, mode: str):
     refresh_global_cache()
 
 def global_on_timer_end(mode: str):
+    # Fixed Headless JS execution by iterating across active connection instances explicitly
+    js_code = ""
     if mode == 'pomodoro':
-        ui.run_javascript("const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.5);", respond=False)
+        js_code = "const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.5);"
     elif mode == 'break':
-        ui.run_javascript("const ctx = new (window.AudioContext || window.webkitAudioContext)(); [0, 0.2].forEach(t => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(440, ctx.currentTime + t); gain.gain.setValueAtTime(0.05, ctx.currentTime + t); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.15); osc.connect(gain); gain.connect(ctx.destination); osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + 0.15); });", respond=False)
+        js_code = "const ctx = new (window.AudioContext || window.webkitAudioContext)(); [0, 0.2].forEach(t => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(440, ctx.currentTime + t); gain.gain.setValueAtTime(0.05, ctx.currentTime + t); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.15); osc.connect(gain); gain.connect(ctx.destination); osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + 0.15); });"
+    
+    if js_code:
+        for client in list(active_clients):
+            try:
+                client.run_javascript(js_code, respond=False)
+            except Exception:
+                pass
 
 focus_timer = FocusTimer(on_tick=lambda: None, on_complete=global_on_session_complete, on_timer_end=global_on_timer_end)
 
@@ -54,11 +63,11 @@ def build_ui():
     """Builds the main user interface layout."""
     global active_clients
     
-    client_id = ui.context.client.id
-    active_clients.add(client_id)
+    client = ui.context.client
+    active_clients.add(client)
     
     def on_disconnect():
-        active_clients.discard(client_id)
+        active_clients.discard(client)
         if not active_clients:
             focus_timer.handle_disconnect()
             
