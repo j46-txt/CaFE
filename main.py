@@ -4,14 +4,11 @@ import os
 from nicegui import app, ui
 import database
 import subjects
+
+database.init_db()
+subjects.seed_default_subjects()
+
 import ui as user_interface
-
-def startup():
-    """Initializes basic transaction tables and clears out generic defaults."""
-    database.init_db()
-    subjects.seed_default_subjects()
-
-app.on_startup(startup)
 
 @ui.page('/')
 def main_page(key: str = None):
