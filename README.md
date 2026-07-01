@@ -1,4 +1,4 @@
-# CaFE (**C**onsistency **a**nd **F**ocus **E**ngine)
+# CaFE (*C*onsistency *a*nd *F*ocus *E*ngine)
 
 CaFE is a minimalist study tracker focused on long-term consistency. It was developed as a personal project, aiming to create a friction-free productivity system and track statistics to improve motivation.
 
