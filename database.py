@@ -5,6 +5,7 @@ import os
 import psycopg2
 import threading
 import queue
+import tempfile
 from contextlib import contextmanager
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'assets', 'database.sqlite')
@@ -75,18 +76,37 @@ def save_cloud_backup(binary_data: bytes):
         print(f"[Backup Error] Failed to save backup to cloud: {e}")
 
 def _backup_worker():
-    """Dedicated background thread worker that sequentially uploads database snapshots."""
+    """Dedicated background thread worker that sequentially uploads database snapshots using SQLite's online backup API."""
     while True:
         try:
             # Block until a synchronization signal is queued
             BACKUP_QUEUE.get()
             if os.path.exists(DB_PATH):
+                tmp_path = None
                 try:
-                    with open(DB_PATH, 'rb') as f:
+                    # Use SQLite native backup API to create a consistent point-in-time file snapshot.
+                    # This eliminates torn reads from concurrent writes and removes hot-path checkpoint overhead.
+                    with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as tmp:
+                        tmp_path = tmp.name
+                    
+                    src_conn = sqlite3.connect(DB_PATH, timeout=30.0)
+                    dst_conn = sqlite3.connect(tmp_path)
+                    src_conn.backup(dst_conn)
+                    dst_conn.close()
+                    src_conn.close()
+                    
+                    with open(tmp_path, 'rb') as f:
                         binary_data = f.read()
+                        
                     save_cloud_backup(binary_data)
                 except Exception as e:
-                    print(f"[Backup Error] Failed to read database snapshot inside worker: {e}")
+                    print(f"[Backup Error] Failed to generate consistent database snapshot inside worker: {e}")
+                finally:
+                    if tmp_path and os.path.exists(tmp_path):
+                        try:
+                            os.remove(tmp_path)
+                        except Exception:
+                            pass
         except Exception as e:
             print(f"[Backup Worker Error] Critical failure in background backup loop: {e}")
         finally:
@@ -130,13 +150,14 @@ def get_db():
         if conn:
             try:
                 changes = conn.total_changes
-                # If local modifications occurred, force a full synchronous WAL checkpoint.
-                # This guarantees that delta frames are flushed back into the primary 'database.sqlite' file
-                # BEFORE we read the file binary for cloud synchronization.
+                # Downgraded from TRUNCATE to PASSIVE. The background worker now uses the online backup 
+                # API, so forcing an expensive, blocking journal truncation on the request thread is obsolete.
                 if tx_committed and changes > 0:
-                    conn.execute('PRAGMA wal_checkpoint(TRUNCATE);')
+                    conn.execute('PRAGMA wal_checkpoint(PASSIVE);')
+                else:
+                    changes = 0
             except Exception as e:
-                print(f"[Checkpoint Error] Failed to flush WAL to disk: {e}")
+                print(f"[Checkpoint Error] Failed to execute passive WAL checkpoint: {e}")
                 changes = 0
                 
             conn.close()
