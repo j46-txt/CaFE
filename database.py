@@ -4,7 +4,6 @@ import sqlite3
 import os
 import psycopg2
 import threading
-import datetime
 from contextlib import contextmanager
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'assets', 'database.sqlite')
@@ -71,12 +70,14 @@ def get_db():
     """Provides a transactional database connection for persistent updates with automatic rollback safety."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = None
+    tx_committed = False
     try:
-        # Set a prolonged timeout threshold to survive transient write-locks across multiple thread threads
+        # Set a prolonged timeout threshold to survive transient write-locks across multiple threads
         conn = sqlite3.connect(DB_PATH, timeout=30.0)
         conn.row_factory = sqlite3.Row
         yield conn
         conn.commit()
+        tx_committed = True
     except Exception:
         if conn:
             conn.rollback()
@@ -85,7 +86,8 @@ def get_db():
         if conn:
             changes = conn.total_changes
             conn.close()
-            if changes > 0:
+            # Optimization: Only push to the cloud if the local write was successfully committed
+            if tx_committed and changes > 0:
                 try:
                     if os.path.exists(DB_PATH):
                         with open(DB_PATH, 'rb') as f:
@@ -99,7 +101,7 @@ def init_db():
     load_cloud_backup()
     
     with get_db() as db:
-        # Enforce WAL (Write-Ahead Logging) and normal synchronous modes to allow concurrent readers and prevent thread locks
+        # Enforce WAL (Write-Ahead Logging) and normal synchronous modes to allow concurrent readers and prevent locks
         db.execute('PRAGMA journal_mode=WAL;')
         db.execute('PRAGMA synchronous=NORMAL;')
         
