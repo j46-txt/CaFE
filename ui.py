@@ -11,14 +11,21 @@ import database
 
 # Centralized global state to prevent multi-tab/refresh desynchronization and race conditions
 cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0}
+cached_active_subject = None
+cached_weekly_goal_hours = 10
 active_clients = set()
 
-def global_on_session_complete(duration_seconds: int, mode: str):
-    global cached_stats
-    active_sub = subjects.get_active_subject()
-    if active_sub:
-        statistics.record_session(active_sub.id, duration_seconds, mode)
+def refresh_global_cache():
+    """Refreshes all memory caches at once to prevent main thread disk blocking loops."""
+    global cached_stats, cached_active_subject, cached_weekly_goal_hours
     cached_stats = statistics.get_stats()
+    cached_active_subject = subjects.get_active_subject()
+    cached_weekly_goal_hours = settings.get_weekly_goal_hours()
+
+def global_on_session_complete(duration_seconds: int, mode: str):
+    if cached_active_subject:
+        statistics.record_session(cached_active_subject.id, duration_seconds, mode)
+    refresh_global_cache()
 
 def global_on_timer_end(mode: str):
     if mode == 'pomodoro':
@@ -36,9 +43,8 @@ async def global_timer_ticker():
 app.on_startup(global_timer_ticker)
 
 def load_initial_stats():
-    global cached_stats
     try:
-        cached_stats = statistics.get_stats()
+        refresh_global_cache()
     except Exception:
         pass
 
@@ -48,7 +54,6 @@ def build_ui():
     """Builds the main user interface layout."""
     global active_clients
     
-    # Track page presence to freeze and flush data on tab close
     client_id = ui.context.client.id
     active_clients.add(client_id)
     
@@ -163,10 +168,6 @@ def build_ui():
     </style>
     ''')
 
-    def refresh_cached_stats():
-        global cached_stats
-        cached_stats = statistics.get_stats()
-
     def get_greeting() -> str:
         hour = datetime.datetime.now().hour
         if 5 <= hour < 12:
@@ -194,7 +195,7 @@ def build_ui():
                         def perform_reset():
                             with database.get_db() as db:
                                 db.execute('DELETE FROM focus_sessions')
-                            refresh_cached_stats()
+                            refresh_global_cache()
                             update_display()
                             confirm_dialog.close()
                             dialog.close()
@@ -210,6 +211,7 @@ def build_ui():
                 settings.set_setting('weekly_goal_hours', int(goal_input.value))
                 settings.set_auto_rotate(auto_rotate.value)
                 focus_timer.sync_durations()
+                refresh_global_cache()
                 update_display()
                 dialog.close()
 
@@ -227,6 +229,7 @@ def build_ui():
                     if new_name.value:
                         subjects.add_subject(new_name.value, int(new_weight.value) if new_weight.value else 1)
                         new_name.value = ''
+                        refresh_global_cache()
                         rebuild_management_view()
                         update_display()
                 ui.button('Add', on_click=quick_add).classes('mono-btn text-xs py-1')
@@ -235,11 +238,13 @@ def build_ui():
             
             def trigger_update(s_id, name_val, weight_val):
                 subjects.update_subject(s_id, name_val, int(weight_val) if weight_val else 1)
+                refresh_global_cache()
                 rebuild_management_view()
                 update_display()
 
             def trigger_delete(s_id):
                 subjects.delete_subject(s_id)
+                refresh_global_cache()
                 rebuild_management_view()
                 update_display()
             
@@ -399,14 +404,13 @@ def build_ui():
         if status == 'running':
             active_focus_seconds = focus_timer.state.seconds_focused_in_turn
 
-        goal_hours = settings.get_weekly_goal_hours()
-        goal_seconds = goal_hours * 3600
+        goal_seconds = cached_weekly_goal_hours * 3600
 
         live_today = cached_stats['today'] + active_focus_seconds
         live_week = cached_stats['week'] + active_focus_seconds
         live_total = cached_stats['total'] + active_focus_seconds
 
-        week_label.text = f"{statistics.format_duration(live_week)} / {goal_hours}h"
+        week_label.text = f"{statistics.format_duration(live_week)} / {cached_weekly_goal_hours}h"
         total_label.text = statistics.format_duration(live_total)
         
         avg_label.text = f"{cached_stats['avg_week_hours']:.1f} hours/week"
@@ -417,12 +421,11 @@ def build_ui():
         progress_val = min(1.0, live_week / goal_seconds) if goal_seconds > 0 else 0
         week_progress.value = progress_val
         
-        active_sub = subjects.get_active_subject()
-        if active_sub:
+        if cached_active_subject:
             suggestion_val_label.set_visibility(True)
             edit_suggestion_inline_btn.set_visibility(True)
             add_suggestion_inline_btn.set_visibility(False)
-            suggestion_val_label.text = f"{active_sub.name}"
+            suggestion_val_label.text = f"{cached_active_subject.name}"
         else:
             suggestion_val_label.set_visibility(False)
             edit_suggestion_inline_btn.set_visibility(False)
@@ -436,6 +439,7 @@ def build_ui():
         suggestion_val_label.update()
 
     subjects.ensure_daily_rotation()
+    refresh_global_cache()  # Run once per window creation to capture state safely
     
     def update_clock():
         now = datetime.datetime.now()
