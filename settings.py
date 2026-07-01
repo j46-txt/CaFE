@@ -9,8 +9,8 @@ def get_setting(key: str, default: str) -> str:
         with database.get_db() as db:
             row = db.execute('SELECT value FROM settings WHERE key = ?', (key,)).fetchone()
             return row['value'] if row else str(default)
-    except sqlite3.OperationalError:
-        # Table doesn't exist yet (safely handles early queries triggered during import phase)
+    except sqlite3.Error:
+        # Catch all generalized engine database exceptions to ensure absolute safety during lazy parsing
         return str(default)
 
 def set_setting(key: str, value: str) -> None:
@@ -18,8 +18,8 @@ def set_setting(key: str, value: str) -> None:
     try:
         with database.get_db() as db:
             db.execute('REPLACE INTO settings (key, value) VALUES (?, ?)', (key, str(value)))
-    except sqlite3.OperationalError:
-        # Prevents early write crashes if configuration states are modified pre-hook
+    except sqlite3.Error:
+        # Prevents early initialization write anomalies if state changes occur before table migration hooks
         pass
 
 def get_weekly_goal_hours() -> int:
