@@ -24,9 +24,10 @@ def refresh_global_cache():
     cached_weekly_goal_hours = settings.get_weekly_goal_hours()
 
 def global_on_session_complete(duration_seconds: int, mode: str):
+    current_subject = cached_active_subject
     def save_and_refresh():
-        if cached_active_subject:
-            statistics.record_session(cached_active_subject.id, duration_seconds, mode)
+        if current_subject:
+            statistics.record_session(current_subject.id, duration_seconds, mode)
         refresh_global_cache()
     
     try:
@@ -226,11 +227,17 @@ async def build_ui():
             ui.button('Reset statistics', on_click=confirm_reset).props('flat dense').classes('text-red-500/70 hover:text-red-400 text-xs self-start mb-3').style('text-transform: none; padding-left: 0;')
 
             async def save_settings():
+                # Extract NiceGUI tracking values safely while resting on the main loop thread
+                pomo_val = int(pomo_input.value) if pomo_input.value is not None else 25
+                break_val = int(break_input.value) if break_input.value is not None else 5
+                goal_val = int(goal_input.value) if goal_input.value is not None else 10
+                rotate_val = bool(auto_rotate.value)
+
                 def b_save():
-                    settings.set_setting('pomodoro_minutes', int(pomo_input.value))
-                    settings.set_setting('break_minutes', int(break_input.value))
-                    settings.set_setting('weekly_goal_hours', int(goal_input.value))
-                    settings.set_auto_rotate(auto_rotate.value)
+                    settings.set_setting('pomodoro_minutes', pomo_val)
+                    settings.set_setting('break_minutes', break_val)
+                    settings.set_setting('weekly_goal_hours', goal_val)
+                    settings.set_auto_rotate(rotate_val)
                     focus_timer.sync_durations()
                     refresh_global_cache()
                 await asyncio.get_running_loop().run_in_executor(None, b_save)
