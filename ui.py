@@ -439,12 +439,22 @@ def build_ui():
             edit_suggestion_inline_btn.set_visibility(False)
             add_suggestion_inline_btn.set_visibility(True)
 
+        # CRITICAL FIX: Explicitly call .update() on components that alter properties dynamically.
+        # This guarantees that property shifts (like icons or visibility vectors) push correctly 
+        # down active client WebSocket pipelines.
         timer_label.update()
         week_label.update()
         total_label.update()
         today_label.update()
         focus_days_label.update()
         suggestion_val_label.update()
+        start_pause_btn.update()
+        reset_btn.update()
+        stop_btn.update()
+        skip_btn.update()
+        mode_toggle.update()
+        timer_status_label.update()
+        week_progress.update()
 
     subjects.ensure_daily_rotation()
     refresh_global_cache()  # Run once per window creation to capture state safely
