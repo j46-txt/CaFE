@@ -301,6 +301,7 @@ async def build_ui():
                             with ui.row().classes('gap-1'):
                                 ui.button(icon='save', on_click=lambda e, sid=sub.id, n=name_edit, w=weight_edit: trigger_update(sid, n.value, w.value)).props('flat dense size=sm color=grey')
                                 ui.button(icon='delete', on_click=lambda e, sid=sub.id: trigger_delete(sid)).props('flat dense size=sm color=grey')
+                subject_list_container.update()
 
             ui.button('Close Panel', on_click=dialog.close).classes('w-full mono-btn mt-1')
             await rebuild_management_view()
@@ -481,6 +482,8 @@ async def build_ui():
         today_label.update()
         focus_days_label.update()
         suggestion_val_label.update()
+        edit_suggestion_inline_btn.update()
+        add_suggestion_inline_btn.update()
         start_pause_btn.update()
         reset_btn.update()
         stop_btn.update()
