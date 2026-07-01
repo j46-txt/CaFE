@@ -20,7 +20,6 @@ def global_on_session_complete(duration_seconds: int, mode: str):
     cached_stats = statistics.get_stats()
 
 def global_on_timer_end(mode: str):
-    # Using respond=False allows fire-and-forget broadcasting without requiring an active specific page context
     if mode == 'pomodoro':
         ui.run_javascript("const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.5);", respond=False)
     elif mode == 'break':
@@ -28,7 +27,6 @@ def global_on_timer_end(mode: str):
 
 focus_timer = FocusTimer(on_tick=lambda: None, on_complete=global_on_session_complete, on_timer_end=global_on_timer_end)
 
-# Single global background ticker driving the timer state precisely
 async def global_timer_ticker():
     while True:
         await asyncio.sleep(1.0)
@@ -48,7 +46,6 @@ app.on_startup(load_initial_stats)
 def build_ui():
     """Builds the main user interface layout."""
     
-    # Global styles override
     ui.add_head_html('''
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght=0,400;0,700;1,400;1,700&display=swap');
@@ -166,7 +163,6 @@ def build_ui():
         else:
             return "Good evening!"
 
-    # Configuration panel
     def open_settings_panel():
         with ui.dialog() as dialog, ui.card().classes('w-80 rounded-none p-4 mono-card'):
             ui.label('Configuration').classes('text-xs text-white uppercase tracking-wider mb-4 w-full')
@@ -207,7 +203,6 @@ def build_ui():
             ui.button('Save Changes', on_click=save_settings).classes('w-full mono-btn mb-1')
         dialog.open()
 
-    # Suggestions input panel
     def open_suggestions_panel():
         with ui.dialog() as dialog, ui.card().classes('w-[360px] rounded-none p-4 mono-card'):
             ui.label('Edit Suggestions').classes('text-xs text-white uppercase tracking-wider mb-3')
@@ -256,24 +251,24 @@ def build_ui():
             rebuild_management_view()
         dialog.open()
 
-    # Information panel
     def open_help_panel():
         with ui.dialog() as dialog, ui.card().classes('w-[420px] rounded-none p-4 mono-card'):
             ui.label('Information').classes('text-xs text-white uppercase tracking-wider mb-3 w-full pb-1 mono-divider')
             
-            ui.label('• Pomodoro Loop: Runs in a continuous, infinite cycle (Focus → Break → Focus → Break) with fully automated transition states.').classes('text-xs text-neutral-400 mb-2 leading-relaxed')
-            ui.label('• Real-Time Logging: Focus metrics are updated automatically and recorded simultaneously in real-time.').classes('text-xs text-neutral-400 mb-2 leading-relaxed')
-            ui.label('• Routine Rotation: Task suggestions update only on a clean app launch after a calendar day has concluded. Ongoing sessions active past midnight are never interrupted.').classes('text-xs text-neutral-400 mb-4 leading-relaxed')
+            # Optimized didactic English information metrics
+            ui.label('• CaFE Cycle: Automated Focus/Break loop. Advances cleanly on its own.').classes('text-xs text-neutral-400 mb-2 leading-relaxed')
+            ui.label('• Cloud Sync: Local session logs mirror to Neon instantly via background worker threads.').classes('text-xs text-neutral-400 mb-2 leading-relaxed')
+            ui.label('• Smart Rotation: Task suggestions swap on your first launch past midnight without breaking workflows.').classes('text-xs text-neutral-400 mb-2 leading-relaxed')
+            ui.label('• Core Security: Engine runs server-side. Page refreshes or multi-tabs will never desync your timer.').classes('text-xs text-neutral-400 mb-4 leading-relaxed')
             
             with ui.column().classes('w-full pt-2.5 mt-1 gap-1 text-[11px] text-neutral-500').style('border-top: 1px solid #141414;'):
-                with ui.row().classes('items-center gap-2 hover:text-white transition-colors cursor-pointer').on('click', lambda: ui.navigate.to('https://github.com/j46-txt/FocusFlow', new_tab=True)):
+                with ui.row().classes('items-center gap-2 hover:text-white transition-colors cursor-pointer').on('click', lambda: ui.navigate.to('https://github.com/j46-txt/CaFE', new_tab=True)):
                     ui.html('''<svg height="14" width="14" viewBox="0 0 16 16" fill="currentColor" style="display:inline-block;vertical-align:middle;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.85.54 1.71 0 1.24-.01 2.23-.01 2.53 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>''')
-                    ui.label('github.com/j46-txt')
+                    ui.label('github.com/j46-txt/CaFE')
             
             ui.button('Close Info', on_click=dialog.close).classes('w-full mono-btn mt-4 text-xs')
         dialog.open()
 
-    # History logs view modal
     def open_history_panel():
         with ui.dialog() as dialog, ui.card().classes('w-[480px] rounded-none p-4 mono-card'):
             with ui.row().classes('w-full justify-between items-center mb-3 pb-1 mono-divider'):
@@ -345,7 +340,6 @@ def build_ui():
         csv_data = statistics.export_history_csv()
         ui.download(csv_data, 'focus_history.csv')
 
-    # Display engine update logic handler
     def update_display():
         status = focus_timer.state.status
 
@@ -375,8 +369,6 @@ def build_ui():
             mode_label = 'Stopwatch'
 
         timer_label.text = focus_timer.display_time
-
-        # Minimalist Browser Tab Title Engine
         ui.page_title(f"({focus_timer.display_time}) {mode_label}")
 
         skip_btn.set_visibility(is_break)
@@ -445,12 +437,10 @@ def build_ui():
 
     ui.timer(1.0, update_clock)
 
-    # --- Main view layout structure ---
     with ui.column().classes('w-full max-w-4xl mx-auto p-4 gap-4').style('background-color: #000000;'):
         
         clock_label = ui.label('').classes('text-neutral-500 tracking-wider text-xs pl-1')
         
-        # --- Part 1: Top panel ---
         with ui.column().classes('w-full gap-4 p-4 mono-card'):
             
             with ui.row().classes('w-full justify-between items-start text-sm'):
@@ -474,10 +464,8 @@ def build_ui():
                 
                 week_progress = ui.linear_progress(value=0.0, show_value=False).classes('w-full').style('height: 14px !important; border-radius: 0px;')
 
-        # --- Part 2: Bottom container ---
         with ui.row().classes('w-full gap-6 items-stretch'):
             
-            # Statistics card block
             with ui.column().classes('p-4 gap-4 relative mono-card').style('flex: 1 1 0; min-width: 320px; min-height: 250px;'):
                 with ui.row().classes('w-full justify-between items-center pb-2 mono-divider'):
                     ui.label('Statistics').classes('text-sm uppercase tracking-wider text-neutral-400')
@@ -497,7 +485,6 @@ def build_ui():
                 
                 ui.label('Show More »').on('click', open_history_panel).classes('absolute bottom-4 left-4 cursor-pointer text-xs uppercase tracking-wider transition-colors blue-link')
 
-            # Timer controls card block
             with ui.column().classes('p-4 gap-4 items-center justify-start relative mono-card').style('flex: 1 1 0; min-width: 320px; min-height: 250px;'):
                 with ui.row().classes('w-full items-center pb-2 relative').style('height: 32px; min-height: 32px; max-height: 32px; border-bottom: 1px solid #141414;'):
                     ui.label('Timer').classes('text-sm uppercase tracking-wider text-neutral-400')
