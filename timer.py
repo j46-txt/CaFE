@@ -38,7 +38,8 @@ class FocusTimer:
                 self.state.seconds_elapsed = 0
             self.state.seconds_focused_in_turn = 0
         self.state.status = 'running'
-        self._last_tick_time = time.time()
+        # OPTIMIZATION: Switched to monotonic tracking references to eliminate system clock variance errors
+        self._last_tick_time = time.monotonic()
         self.on_tick()
 
     def pause(self) -> None:
@@ -85,7 +86,7 @@ class FocusTimer:
     def tick(self) -> None:
         if self.state.status != 'running':
             return
-        now = time.time()
+        now = time.monotonic()
         delta = int(now - self._last_tick_time)
         if delta > 0:
             self._last_tick_time += delta  
