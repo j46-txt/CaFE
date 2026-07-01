@@ -5,8 +5,11 @@ from nicegui import app, ui
 import database
 import subjects
 
-database.init_db()
-subjects.seed_default_subjects()
+# Defer resource-heavy, disk, or network-blocking DB/Cloud initializations to the app startup lifecycle hook
+@app.on_startup
+def initialize_application_state():
+    database.init_db()
+    subjects.seed_default_subjects()
 
 import ui as user_interface
 
