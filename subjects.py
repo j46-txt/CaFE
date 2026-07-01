@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import datetime
 import random
+import threading
 from dataclasses import dataclass
 from typing import Optional, List
 import database
@@ -14,6 +15,9 @@ class Subject:
     is_active: bool
     list_order: int
     weight: int = 1
+
+# Explicit serialization primitive to secure timezone evaluations across asynchronous user request sessions
+rotation_lock = threading.Lock()
 
 def seed_default_subjects() -> None:
     """Explicitly empty to prevent any deletion queries from wiping user data during runtime restarts."""
@@ -80,7 +84,9 @@ def rotate_subject() -> None:
             return
         current = db.execute('SELECT * FROM subjects WHERE is_active = 1 LIMIT 1').fetchone()
         candidates = [s for s in all_subs if not current or s['id'] != current['id']]
-        weights = [s['weight'] for s in candidates]
+        if not candidates:
+            candidates = list(all_subs)
+        weights = [max(1, s['weight']) for s in candidates]
         chosen = random.choices(candidates, weights=weights, k=1)[0]
         db.execute('UPDATE subjects SET is_active = 0')
         db.execute('UPDATE subjects SET is_active = 1 WHERE id = ?', (chosen['id'],))
@@ -89,11 +95,12 @@ def ensure_daily_rotation() -> None:
     """Rotates suggestion only when a new day arrives and the user opens the application."""
     if not settings.get_auto_rotate():
         return
-    today_str = datetime.datetime.now().strftime('%Y-%m-%d')
-    last_date = settings.get_last_rotation_date()
-    if not last_date:
-        settings.set_last_rotation_date(today_str)
-        return
-    if last_date < today_str:
-        rotate_subject()
-        settings.set_last_rotation_date(today_str)
+    with rotation_lock:
+        today_str = datetime.datetime.now().strftime('%Y-%m-%d')
+        last_date = settings.get_last_rotation_date()
+        if not last_date:
+            settings.set_last_rotation_date(today_str)
+            return
+        if last_date < today_str:
+            rotate_subject()
+            settings.set_last_rotation_date(today_str)
