@@ -4,14 +4,20 @@ import os
 from nicegui import app, ui
 import database
 import subjects
+import ui as user_interface
 
-# Defer resource-heavy, disk, or network-blocking DB/Cloud initializations to the app startup lifecycle hook
+# Monolithic single-entry startup pipeline to orchestrate dependency loading sequentially
 @app.on_startup
 def initialize_application_state():
+    print("[Lifecycle] Stage 1: Initializing local/cloud database storage...")
     database.init_db()
+    
+    print("[Lifecycle] Stage 2: Seeding relational tables...")
     subjects.seed_default_subjects()
-
-import ui as user_interface
+    
+    print("[Lifecycle] Stage 3: Hydrating user interface state caches...")
+    user_interface.load_initial_stats()
+    print("[Lifecycle] System startup sequence completed successfully.")
 
 @ui.page('/')
 def main_page(key: str = None):
