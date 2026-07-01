@@ -4,6 +4,7 @@ import sqlite3
 import os
 import psycopg2
 import threading
+import datetime
 from contextlib import contextmanager
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'assets', 'database.sqlite')
@@ -15,7 +16,8 @@ def load_cloud_backup():
         print("[Backup] DATABASE_URL not found. Running in ephemeral local-only mode.")
         return
     try:
-        conn = psycopg2.connect(POSTGRES_URL)
+        # Prevent infinite connection hangs during remote network dropouts or database cold starts
+        conn = psycopg2.connect(POSTGRES_URL, connect_timeout=5)
         cur = conn.cursor()
         cur.execute('''
             CREATE TABLE IF NOT EXISTS cafe_backup (
@@ -45,7 +47,7 @@ def save_cloud_backup(binary_data: bytes):
     if not POSTGRES_URL:
         return
     try:
-        conn = psycopg2.connect(POSTGRES_URL)
+        conn = psycopg2.connect(POSTGRES_URL, connect_timeout=5)
         cur = conn.cursor()
         cur.execute('''
             INSERT INTO cafe_backup (id, file_data, updated_at)
@@ -68,31 +70,39 @@ def save_cloud_backup_background(binary_data: bytes):
 def get_db():
     """Provides a transactional database connection for persistent updates with automatic rollback safety."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
+    conn = None
     try:
+        # Set a prolonged timeout threshold to survive transient write-locks across multiple thread threads
+        conn = sqlite3.connect(DB_PATH, timeout=30.0)
+        conn.row_factory = sqlite3.Row
         yield conn
         conn.commit()
     except Exception:
-        conn.rollback()
+        if conn:
+            conn.rollback()
         raise
     finally:
-        changes = conn.total_changes
-        conn.close()
-        if changes > 0:
-            try:
-                if os.path.exists(DB_PATH):
-                    with open(DB_PATH, 'rb') as f:
-                        binary_data = f.read()
-                    save_cloud_backup_background(binary_data)
-            except Exception as e:
-                print(f"[Backup Error] Failed to read database snapshot: {e}")
+        if conn:
+            changes = conn.total_changes
+            conn.close()
+            if changes > 0:
+                try:
+                    if os.path.exists(DB_PATH):
+                        with open(DB_PATH, 'rb') as f:
+                            binary_data = f.read()
+                        save_cloud_backup_background(binary_data)
+                except Exception as e:
+                    print(f"[Backup Error] Failed to read database snapshot: {e}")
 
 def init_db():
     """Initializes the SQLite tables with schema migrations safely."""
     load_cloud_backup()
     
     with get_db() as db:
+        # Enforce WAL (Write-Ahead Logging) and normal synchronous modes to allow concurrent readers and prevent thread locks
+        db.execute('PRAGMA journal_mode=WAL;')
+        db.execute('PRAGMA synchronous=NORMAL;')
+        
         db.execute('''
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
