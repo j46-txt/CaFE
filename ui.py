@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import asyncio
 import datetime
+import threading
 from nicegui import app, ui
 from timer import FocusTimer
 import subjects
@@ -23,9 +24,18 @@ def refresh_global_cache():
     cached_weekly_goal_hours = settings.get_weekly_goal_hours()
 
 def global_on_session_complete(duration_seconds: int, mode: str):
-    if cached_active_subject:
-        statistics.record_session(cached_active_subject.id, duration_seconds, mode)
-    refresh_global_cache()
+    def save_and_refresh():
+        if cached_active_subject:
+            statistics.record_session(cached_active_subject.id, duration_seconds, mode)
+        refresh_global_cache()
+    
+    try:
+        # Safely hand off the blocking DB save operation to the running event loop's thread pool executor
+        loop = asyncio.get_running_loop()
+        loop.run_in_executor(None, save_and_refresh)
+    except RuntimeError:
+        # Robust fallback fallback for non-async calling parameters
+        threading.Thread(target=save_and_refresh, daemon=True).start()
 
 def global_on_timer_end(mode: str):
     # Safe non-blocking broadcast across all active user client connections
@@ -360,8 +370,10 @@ def build_ui():
             focus_timer.pause()
         update_display()
 
-    def download_csv_log():
-        csv_data = statistics.export_history_csv()
+    async def download_csv_log():
+        # Prevent UI freezing by running synchronous data/string manipulations in a separate worker thread
+        loop = asyncio.get_running_loop()
+        csv_data = await loop.run_in_executor(None, statistics.export_history_csv)
         ui.download(csv_data, 'focus_history.csv')
 
     def update_display():
@@ -439,9 +451,6 @@ def build_ui():
             edit_suggestion_inline_btn.set_visibility(False)
             add_suggestion_inline_btn.set_visibility(True)
 
-        # CRITICAL FIX: Explicitly call .update() on components that alter properties dynamically.
-        # This guarantees that property shifts (like icons or visibility vectors) push correctly 
-        # down active client WebSocket pipelines.
         timer_label.update()
         week_label.update()
         total_label.update()
@@ -457,7 +466,7 @@ def build_ui():
         week_progress.update()
 
     subjects.ensure_daily_rotation()
-    refresh_global_cache()  # Run once per window creation to capture state safely
+    refresh_global_cache()  
     
     def update_clock():
         now = datetime.datetime.now()
