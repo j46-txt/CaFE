@@ -203,7 +203,8 @@ def init_db():
                 name TEXT NOT NULL,
                 is_active BOOLEAN NOT NULL DEFAULT 0,
                 list_order INTEGER NOT NULL,
-                weight INTEGER NOT NULL DEFAULT 1
+                weight INTEGER NOT NULL DEFAULT 1,
+                is_deleted BOOLEAN NOT NULL DEFAULT 0
             )
         ''')
         
@@ -211,6 +212,8 @@ def init_db():
         columns = [row['name'] for row in cursor.fetchall()]
         if 'weight' not in columns:
             db.execute("ALTER TABLE subjects ADD COLUMN weight INTEGER NOT NULL DEFAULT 1")
+        if 'is_deleted' not in columns:
+            db.execute("ALTER TABLE subjects ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0")
             
         db.execute('''
             CREATE TABLE IF NOT EXISTS focus_sessions (
