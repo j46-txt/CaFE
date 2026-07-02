@@ -168,30 +168,33 @@ async def build_ui():
             color: #7d5337 !important;
         }
         
-        /* SELETOR TOGGLE (Pomodoro / Stopwatch) */
+        /* SELETOR TOGGLE (Pomodoro / Stopwatch) - CORREÇÃO COMPLETA DE CLIQUE */
         .large-toggle .q-btn {
             font-size: 13px !important;
             padding: 3px 10px !important;
             border-radius: 0px !important;
             border: 1px solid #16100d !important;
             background-color: #000000 !important;
-            color: #4a413a !important; /* Desativado */
+            color: #4a413a !important; 
             transition: none !important;
+            box-shadow: none !important;
         }
-        .large-toggle .q-btn--active {
-            color: #ebdcd0 !important; /* Ativado */
+        .large-toggle .q-btn.q-btn--active {
+            color: #ebdcd0 !important; 
             background-color: #6f4e37 !important;
             border-color: #6f4e37 !important;
         }
-        /* Desativa o flash/ripple nativo e trava o estado estável de clique pressionado */
-        .large-toggle .q-btn .q-focus-helper {
+        .large-toggle .q-btn .q-focus-helper, .large-toggle .q-btn .q-ripple {
             display: none !important;
         }
-        .large-toggle .q-btn:active, .large-toggle .q-btn--actionable:active {
+        /* Estabiliza as cores durantes cliques contínuos e segurados (Evita o efeito de piscar) */
+        .large-toggle .q-btn:not(.q-btn--active):active, 
+        .large-toggle .q-btn:not(.q-btn--active):focus {
             background-color: #000000 !important;
             color: #4a413a !important;
         }
-        .large-toggle .q-btn--active:active {
+        .large-toggle .q-btn.q-btn--active:active, 
+        .large-toggle .q-btn.q-btn--active:focus {
             background-color: #6f4e37 !important;
             color: #ebdcd0 !important;
         }
@@ -210,11 +213,18 @@ async def build_ui():
         }
         .q-field--outlined .q-field__control { border: 1px solid #16100d !important; border-radius: 0px !important; }
         
-        /* BARRA DE PROGRESSO: OCA COM CONTORNO MARROM */
+        /* BARRA DE PROGRESSO: TOTALMENTE OCA COM CONTORNO MARROM */
         .q-linear-progress { 
-            background: #000000 !important; 
+            background-color: #000000 !important; 
+            background: #000000 !important;
             color: #6f4e37 !important; 
             border: 1px solid #6f4e37 !important;
+        }
+        /* Remove o fundo cinza padrão interno da esteira do componente */
+        .q-linear-progress__track, .q-linear-progress__track--with-background {
+            background-color: #000000 !important;
+            background: #000000 !important;
+            opacity: 0 !important;
         }
         
         @keyframes gradient-flow-right {
@@ -227,13 +237,13 @@ async def build_ui():
             animation: gradient-flow-right 3s linear infinite !important;
         }
 
-        /* OVERRIDES DE HIERARQUIA UTILITÁRIA */
-        /* Grupo Principal: Valores, Números, Timer, Saudação e Títulos Principais dos Cards */
-        .text-white, .text-neutral-300, .uppercase.text-neutral-400, .uppercase.text-white, .hover\:text-white:hover { 
+        /* SOBREPOSIÇÃO RADICAL DE ESCOPO PARA CORRIGIR TEXTOS E NÚMEROS DIRETOS */
+        /* Grupo de Destaque Principal: Números, Timer, Valores, Saudação e Títulos dos Cards */
+        body [class*="text-white"], body [class*="text-neutral-300"], body .hover\:text-white:hover { 
             color: #ebdcd0 !important; 
         }
-        /* Labels Secundárias Apagadas: Weekly Goal, Pace, Total Hours, Total Focus Days, etc. */
-        .text-neutral-500, .text-neutral-400:not(.uppercase) { 
+        /* Grupo de Labels Secundárias Desaturadas e Apagadas */
+        body [class*="text-neutral-500"], body [class*="text-neutral-400"]:not(.uppercase) { 
             color: #59514a !important; 
         }
         .text-neutral-600 { color: #382d26 !important; }
