@@ -383,7 +383,7 @@ async def build_ui():
             display: inline-flex !important;
             align-items: center !important;
             gap: 6px !important;
-            text-decoration: underline !important;
+            text-decoration: none !important;
             color: #875d46 !important;
             font-size: 11px !important;
             transition: color 0.1s ease-in-out !important;
@@ -518,16 +518,19 @@ async def build_ui():
             ui.html('<div class="text-xs mb-3" style="color: #59514a !important; text-transform: none !important;"><span style="color: #4e3629 !important; font-weight: bold;">C</span>onsistency <span style="color: #4e3629 !important; font-weight: bold;">a</span>nd <span style="color: #4e3629 !important; font-weight: bold;">F</span>ocus <span style="color: #4e3629 !important; font-weight: bold;">E</span>ngine</div>')
             
             ui.html('''
-            <div class="text-xs frappe-dark mb-4 leading-relaxed" style="text-transform: none !important;">
-                This system utilizes integrated countdown and count-up timers as the core mechanism to support deep focus while systematically tracking your study time. Every session automatically commits critical data logs including the exact calendar date, study duration, and precise starting and ending timestamps into the history log. To customize your workflow, you can define a pool of specific subjects with assigned probability weights; the engine triggers a weighted selection loop to generate a single daily study suggestion which alters every new day and populates your visual analytics panels. To safeguard continuous late-night sessions from abrupt changes, this rotation occurs exclusively upon your first application launch of a fresh calendar day, and an accessible rest shortcut allows you to skip break periods instantly to maintain your focus momentum.
+            <div class="text-xs frappe-dark mb-4 leading-relaxed" style="text-transform: none !important; display: flex; flex-direction: column; gap: 10px;">
+                <p class="m-0">This system utilizes integrated countdown and count-up timers as the core mechanism to support deep focus while systematically tracking your study time.</p>
+                <p class="m-0">Every session automatically commits critical data logs including the exact calendar date, study duration, and precise starting and ending timestamps into the history log.</p>
+                <p class="m-0">To customize your workflow, you can define a pool of specific subjects with assigned probability weights; the engine triggers a weighted selection loop to generate a single daily study suggestion which alters every new day and populates your visual analytics panels.</p>
+                <p class="m-0">To safeguard continuous late-night sessions from abrupt changes, this rotation occurs exclusively upon your first application launch of a fresh calendar day, and an accessible rest shortcut allows you to skip break periods instantly to maintain your focus momentum.</p>
             </div>
             ''')
                         
             with ui.row().classes('w-full pt-2.5 mt-1 items-center').style('border-top: 1px solid #16100d;'):
                 ui.html('''
                 <a href="https://github.com/j46-txt/CaFE" target="_blank" class="gh-link-custom">
-                    <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" style="display: inline-block; vertical-align: middle; flex-shrink: 0; overflow: visible; width: 16px; height: 16px;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2;3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.85.54 1.71 0 1.24-.01 2.23-.01 2.53 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-                    <span style="font-family: 'Courier Prime', monospace !important; text-decoration: underline;">github.com/j46-txt/CaFE</span>
+                    <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" style="display: inline-block; vertical-align: middle; flex-shrink: 0; overflow: visible; width: 16px; height: 16px;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2 3.64-.89 3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.85.54 1.71 0 1.24-.01 2.23-.01 2.53 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                    <span style="font-family: 'Courier Prime', monospace !important;">github.com/j46-txt/CaFE</span>
                 </a>
                 ''')
             
@@ -629,7 +632,7 @@ async def build_ui():
             timer_status_label.text = 'Focus'
             timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 3px 5px 2px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
             timer_status_label.set_visibility(True)
-            mode_label = 'Focus ☕︎'
+            mode_label = 'Focus'
         elif focus_timer.state.mode == 'break':
             timer_status_label.text = 'Break'
             timer_status_label.style('color: #a3b18a; background-color: rgba(163, 177, 138, 0.06); border: 0.5px solid rgba(163, 177, 138, 0.2); padding: 3px 5px 2px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
@@ -637,7 +640,7 @@ async def build_ui():
             mode_label = 'Break'
         else:
             timer_status_label.set_visibility(False)
-            mode_label = 'Stopwatch ☕︎'
+            mode_label = 'Stopwatch'
 
         timer_label.text = focus_timer.display_time
         ui.page_title(f"{focus_timer.display_time} · {mode_label}")
@@ -676,7 +679,11 @@ async def build_ui():
         total_label.text = statistics.format_duration(live_total)
         
         avg_label.text = f"{cached_stats['avg_week_hours']:.1f} hours/week"
-        focus_days_label.text = f"{cached_stats['focus_days']} days"
+        
+        live_focus_days = cached_stats['focus_days']
+        if cached_stats['today'] == 0 and active_focus_seconds > 0:
+            live_focus_days += 1
+        focus_days_label.text = f"{live_focus_days} days"
         
         today_label.text = statistics.format_duration(live_today)
         
