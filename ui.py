@@ -558,18 +558,18 @@ async def build_ui():
             timer_status_label.text = 'Focus'
             timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 4px 5px 1px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
             timer_status_label.set_visibility(True)
-            mode_label = 'Focus ☕'
+            mode_label = 'Focus ☕︎'
         elif focus_timer.state.mode == 'break':
             timer_status_label.text = 'Break'
             timer_status_label.style('color: #a3b18a; background-color: rgba(163, 177, 138, 0.06); border: 0.5px solid rgba(163, 177, 138, 0.2); padding: 4px 5px 1px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
             timer_status_label.set_visibility(True)
-            mode_label = 'Break ☕'
+            mode_label = 'Break'
         else:
             timer_status_label.set_visibility(False)
-            mode_label = 'Stopwatch'
+            mode_label = 'Stopwatch ☕︎'
 
         timer_label.text = focus_timer.display_time
-        ui.page_title(f"({focus_timer.display_time}) {mode_label}")
+        ui.page_title(f"{focus_timer.display_time} · {mode_label}")
 
         skip_btn.set_visibility(is_break)
         reset_btn.set_visibility(is_pomo_mode and status != 'idle')
@@ -705,7 +705,7 @@ async def build_ui():
                 ).classes('large-toggle mt-1').props('dense unevaluated flat')
                 
                 with ui.column().classes('w-full items-center mt-1'):
-                    timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light tracking-normal').style('transform: translateY(1px);')
+                    timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light tracking-normal')
                     
                     with ui.row().classes('gap-1.5 h-10 items-center justify-center w-full'):
                         start_pause_btn = ui.button(on_click=toggle_start_pause).classes('mono-btn').props('flat round size=lg')
