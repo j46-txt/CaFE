@@ -124,7 +124,7 @@ async def build_ui():
         .frappe-dark { color: #59514a !important; }
         .frappe-muted { color: #382d26 !important; }
         
-        /* TOTAL RIPPLE EXTERMINATION (Elimina o efeito de preenchimento ao clicar) */
+        /* TOTAL RIPPLE EXTERMINATION */
         .q-ripple, .q-ripple__inner, [class*="q-ripple"] {
             display: none !important;
             opacity: 0 !important;
@@ -164,7 +164,7 @@ async def build_ui():
             border-color: #382d26 !important;
         }
         
-        /* TIMER CONTROL ROUND BUTTONS (RESTORED TO ORIGINAL UNIFIED PROGRESS BAR BROWN) */
+        /* TIMER CONTROL ROUND BUTTONS */
         html body .q-btn.timer-btn,
         html body .q-btn.timer-btn:hover,
         html body .q-btn.timer-btn:focus,
@@ -241,7 +241,7 @@ async def build_ui():
             color: #875d46 !important;
         }
         
-        /* DEFINE SUGGESTIONS BUTTON - STRONGLY LOCKED TO FRAPPE LIGHT NATIVE TEXT */
+        /* DEFINE SUGGESTIONS BUTTON */
         .inline-mono-btn {
             background-color: #4e3629 !important;
             border: 1px solid #4e3629 !important;
@@ -298,6 +298,13 @@ async def build_ui():
         }
         html body .q-dialog .mono-card .text-neutral-500 {
             color: #59514a !important;
+        }
+        
+        /* ABSOLUTE REMOVAL OF WHITE GLOW / SHADOWS FROM DIALOGS AND MODALS */
+        html body .q-dialog .mono-card,
+        html body .q-dialog__inner > div {
+            box-shadow: none !important;
+            border: 1px solid #16100d !important;
         }
         
         /* PROGRESS BAR: HOLLOW CONTEXT WITH DARK BORDER */
@@ -377,7 +384,7 @@ async def build_ui():
             align-items: center !important;
             gap: 6px !important;
             text-decoration: underline !important;
-            color: #875d46 !important; /* Clickable distinct link color */
+            color: #875d46 !important;
             font-size: 11px !important;
             transition: color 0.1s ease-in-out !important;
             line-height: 16px !important;
@@ -398,7 +405,7 @@ async def build_ui():
             return "Good evening!"
 
     def open_settings_panel():
-        with ui.dialog() as dialog, ui.card().classes('w-80 rounded-none p-4 mono-card'):
+        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-80 rounded-none p-4 mono-card'):
             ui.label('Configuration').classes('text-xs frappe-light uppercase tracking-wider mb-4 w-full')
             
             pomo_input = ui.number('Focus Period (min)', value=settings.get_pomodoro_minutes(), format='%.0f').classes('w-full mb-2')
@@ -406,7 +413,7 @@ async def build_ui():
             goal_input = ui.number('Weekly Target (hours)', value=settings.get_weekly_goal_hours(), format='%.0f').classes('w-full mb-4')
             
             def confirm_reset():
-                with ui.dialog() as confirm_dialog, ui.card().classes('w-72 rounded-none p-4 mono-card'):
+                with ui.dialog().props('transition-show=none transition-hide=none') as confirm_dialog, ui.card().classes('w-72 rounded-none p-4 mono-card'):
                     ui.label('Are you sure?').classes('text-xs frappe-light uppercase tracking-wider mb-1')
                     ui.label('This will permanently delete all logged focus sessions.').classes('text-xs frappe-dark mb-4')
                     with ui.row().classes('w-full justify-end gap-2'):
@@ -445,7 +452,7 @@ async def build_ui():
         dialog.open()
 
     async def open_suggestions_panel():
-        with ui.dialog() as dialog, ui.card().classes('w-[360px] rounded-none p-4 mono-card'):
+        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[360px] rounded-none p-4 mono-card'):
             ui.label('Edit Suggestions').classes('text-xs frappe-light uppercase tracking-wider mb-3')
             
             with ui.row().classes('w-full items-center gap-1 mb-3 pb-3 mono-divider'):
@@ -505,12 +512,11 @@ async def build_ui():
         dialog.open()
 
     def open_help_panel():
-        with ui.dialog() as dialog, ui.card().classes('w-[420px] rounded-none p-4 mono-card'):
+        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[420px] rounded-none p-4 mono-card'):
             ui.label('Information').classes('text-xs frappe-light uppercase tracking-wider mb-3 w-full pb-1 mono-divider')
             
             ui.html('<div class="text-xs mb-3" style="color: #59514a !important; text-transform: none !important;"><span style="color: #4e3629 !important; font-weight: bold;">C</span>onsistency <span style="color: #4e3629 !important; font-weight: bold;">a</span>nd <span style="color: #4e3629 !important; font-weight: bold;">F</span>ocus <span style="color: #4e3629 !important; font-weight: bold;">E</span>ngine</div>')
             
-            # FULL INSTRUCTION MANUAL WRITTEN AS A COHESIVE CONTINUOUS PARAGRAPH (NO TOPICS)
             ui.html('''
             <div class="text-xs frappe-dark mb-4 leading-relaxed" style="text-transform: none !important;">
                 This system utilizes integrated countdown and count-up timers as the core mechanism to support deep focus while systematically tracking your study time. Every session automatically commits critical data logs including the exact calendar date, study duration, and precise starting and ending timestamps into the history log. To customize your workflow, you can define a pool of specific subjects with assigned probability weights; the engine triggers a weighted selection loop to generate a single daily study suggestion which alters every new day and populates your visual analytics panels. To safeguard continuous late-night sessions from abrupt changes, this rotation occurs exclusively upon your first application launch of a fresh calendar day, and an accessible rest shortcut allows you to skip break periods instantly to maintain your focus momentum.
@@ -518,7 +524,6 @@ async def build_ui():
             ''')
                         
             with ui.row().classes('w-full pt-2.5 mt-1 items-center').style('border-top: 1px solid #16100d;'):
-                # BULLETPROOF RE-ENGINEERED HTML SVG GITHUB ELEMENT WITH EXPLICIT FLEX INLINE LOCK
                 ui.html('''
                 <a href="https://github.com/j46-txt/CaFE" target="_blank" class="gh-link-custom">
                     <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor" style="display: inline-block; vertical-align: middle; flex-shrink: 0; overflow: visible; width: 16px; height: 16px;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2;3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.85.54 1.71 0 1.24-.01 2.23-.01 2.53 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
@@ -551,7 +556,7 @@ async def build_ui():
 
         summary_rows, rows = await asyncio.get_running_loop().run_in_executor(None, fetch_history_data)
 
-        with ui.dialog() as dialog, ui.card().classes('w-[480px] rounded-none p-4 mono-card'):
+        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[480px] rounded-none p-4 mono-card'):
             with ui.row().classes('w-full justify-between items-center mb-3 pb-1 mono-divider'):
                 ui.label('Focus Sessions Log').classes('text-xs frappe-light uppercase tracking-wider')
                 ui.button('Export CSV', on_click=download_csv_log).classes('mono-btn').style('font-size: 10px !important; padding: 2px 8px !important; height: auto; min-height: 0;')
@@ -673,4 +678,125 @@ async def build_ui():
         avg_label.text = f"{cached_stats['avg_week_hours']:.1f} hours/week"
         focus_days_label.text = f"{cached_stats['focus_days']} days"
         
-        today_label.text = statistics.format_duration(live
+        today_label.text = statistics.format_duration(live_today)
+        
+        progress_val = min(1.0, live_week / goal_seconds) if goal_seconds > 0 else 0
+        week_progress.value = progress_val
+        
+        if cached_active_subject:
+            suggestion_val_label.set_visibility(True)
+            edit_suggestion_inline_btn.set_visibility(True)
+            add_suggestion_inline_btn.set_visibility(False)
+            suggestion_val_label.text = f"{cached_active_subject.name}"
+        else:
+            suggestion_val_label.set_visibility(False)
+            edit_suggestion_inline_btn.set_visibility(False)
+            add_suggestion_inline_btn.set_visibility(True)
+
+        timer_label.update()
+        week_label.update()
+        total_label.update()
+        today_label.update()
+        focus_days_label.update()
+        suggestion_val_label.update()
+        edit_suggestion_inline_btn.update()
+        add_suggestion_inline_btn.update()
+        start_pause_btn.update()
+        reset_btn.update()
+        stop_btn.update()
+        skip_btn.update()
+        pomo_toggle_btn.update()
+        stopwatch_toggle_btn.update()
+        timer_status_label.update()
+        week_progress.update()
+
+    # Offload initial database hits into the worker pool execution thread to ensure zero event loop freezes
+    await asyncio.get_running_loop().run_in_executor(
+        None, lambda: (subjects.ensure_daily_rotation(), refresh_global_cache())
+    )
+    
+    def update_clock():
+        now = datetime.datetime.now()
+        date_str = now.strftime('%d/%m/%Y')
+        day_str = now.strftime('%A')
+        time_str = now.strftime('%H:%M')
+        clock_label.content = f'<div style="color: #59514a !important;">{date_str} · {day_str} · {time_str}</div>'
+        greeting_label.text = get_greeting()
+        update_display()
+
+    ui.timer(1.0, update_clock)
+
+    with ui.column().classes('w-full max-w-4xl mx-auto p-4 gap-4').style('background-color: #000000;'):
+        
+        clock_label = ui.html('').classes('clock-fixed-tint pl-1')
+        
+        with ui.column().classes('w-full gap-4 p-4 mono-card'):
+            
+            with ui.row().classes('w-full justify-between items-start text-sm'):
+                with ui.column().classes('gap-1'):
+                    greeting_label = ui.label('').classes('frappe-light')
+                    
+                    with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
+                        ui.label("Today's suggestion:").classes('frappe-dark text-sm')
+                        suggestion_val_label = ui.label('').classes('frappe-light uppercase text-sm')
+                        edit_suggestion_inline_btn = ui.button(icon='edit', on_click=open_suggestions_panel).props('flat dense size=xs no-ripple').classes('edit-pencil-btn')
+                        add_suggestion_inline_btn = ui.button('+ Define Suggestions', on_click=open_suggestions_panel).classes('inline-mono-btn')
+                
+                with ui.row().classes('gap-2 items-center'):
+                    ui.button(icon='help', on_click=open_help_panel).props('flat dense size=sm color=grey no-ripple').classes('icon-panel-btn')
+                    ui.button(icon='settings', on_click=open_settings_panel).props('flat dense size=sm color=grey no-ripple').classes('icon-panel-btn')
+
+            with ui.column().classes('w-full gap-1.5 mt-2'):
+                with ui.row().classes('w-full justify-between items-baseline'):
+                    ui.label('Weekly Goal').classes('text-xs uppercase tracking-wider frappe-dark')
+                    week_label = ui.label('0h 0m / 10h').classes('frappe-light text-sm')
+                
+                week_progress = ui.linear_progress(value=0.0, show_value=False).classes('w-full').style('height: 14px !important; border-radius: 0px;')
+
+        with ui.row().classes('w-full gap-6 items-stretch'):
+            
+            with ui.column().classes('p-4 gap-4 relative mono-card').style('flex: 1 1 0; min-width: 320px; min-height: 250px;'):
+                with ui.row().classes('w-full justify-between items-center pb-2 mono-divider'):
+                    ui.label('Statistics').classes('text-sm uppercase tracking-wider frappe-light')
+                
+                with ui.column().classes('w-full gap-3 text-sm text-neutral-400'):
+                    with ui.column().classes('gap-0'):
+                        ui.label('Pace').classes('text-sm uppercase tracking-wider frappe-dark')
+                        avg_label = ui.label('0.0 hours/week').classes('frappe-light text-base')
+                        
+                    with ui.column().classes('gap-0'):
+                        ui.label('Total Hours').classes('text-sm uppercase tracking-wider frappe-dark')
+                        total_label = ui.label('0h 0m').classes('frappe-light text-base')
+
+                    with ui.column().classes('gap-0'):
+                        ui.label('Total Focus Days').classes('text-sm uppercase tracking-wider frappe-dark')
+                        focus_days_label = ui.label('0 days').classes('frappe-light text-base')
+                
+                ui.label('Show More »').on('click', open_history_panel).classes('absolute bottom-4 left-4 cursor-pointer text-xs uppercase tracking-wider transition-colors blue-link')
+
+            with ui.column().classes('p-4 gap-4 items-center justify-start relative mono-card').style('flex: 1 1 0; min-width: 320px; min-height: 250px;'):
+                with ui.row().classes('w-full items-center pb-2 relative').style('height: 32px; min-height: 32px; max-height: 32px; border-bottom: 1px solid #16100d;'):
+                    ui.label('Timer').classes('text-sm uppercase tracking-wider frappe-light')
+                    with ui.row().classes('absolute right-0 top-0 bottom-2 items-center'):
+                        timer_status_label = ui.label('[Focus]').classes('rounded-none font-mono')
+                
+                with ui.row().classes('mt-1 gap-0 justify-center items-center'):
+                    pomo_toggle_btn = ui.button('Pomodoro', on_click=lambda: (focus_timer.set_mode('Pomodoro'), update_display())).props('flat dense no-ripple').classes('toggle-btn-pomo')
+                    stopwatch_toggle_btn = ui.button('Stopwatch', on_click=lambda: (focus_timer.set_mode('Stopwatch'), update_display())).props('flat dense no-ripple').classes('toggle-btn-sw')
+                
+                with ui.column().classes('w-full items-center mt-1'):
+                    timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light tracking-normal')
+                    
+                    with ui.row().classes('gap-1.5 h-10 items-center justify-center w-full'):
+                        start_pause_btn = ui.button(on_click=toggle_start_pause).classes('timer-btn').props('flat round size=md no-ripple')
+                        reset_btn = ui.button(on_click=lambda: (focus_timer.reset(), update_display())).classes('timer-btn').props('flat round icon=refresh size=md no-ripple')
+                        stop_btn = ui.button(on_click=lambda: (focus_timer.stop(), update_display())).classes('timer-btn').props('flat round icon=stop size=md no-ripple')
+
+                with ui.row().classes('w-full items-center gap-1.5 mt-auto pt-2').style('border-top: 1px solid #16100d;'):
+                    ui.label("Today:").classes('text-xs uppercase tracking-wider frappe-dark')
+                    today_label = ui.label('0h 0m').classes('text-xs frappe-light')
+
+                skip_btn = ui.label('Skip Break »').on('click', lambda: (focus_timer.skip(), update_display())).classes('absolute bottom-2 right-4 cursor-pointer text-xs uppercase tracking-wider transition-colors skip-btn-custom')
+
+    update_clock()
+    update_display()
