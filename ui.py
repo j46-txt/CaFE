@@ -161,7 +161,7 @@ async def build_ui():
         }
         
         .blue-link {
-            color: #7d5337 !important;
+            color: #9c6f52 !important;
             transition: color 0.1s ease-in-out;
         }
         .blue-link:hover {
