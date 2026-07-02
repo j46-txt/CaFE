@@ -100,6 +100,7 @@ async def build_ui():
         
         body {
             background-color: #000000 !important;
+            color: #b5a499 !important;
             font-size: 15px !important;
         }
         
@@ -116,6 +117,7 @@ async def build_ui():
         .frappe-light { color: #ebdcd0 !important; }
         .frappe-dark { color: #59514a !important; }
         .frappe-muted { color: #382d26 !important; }
+        .clock-text { color: #59514a !important; }
         
         /* STANDARD RECTANGULAR BUTTONS */
         .mono-btn {
@@ -135,7 +137,7 @@ async def build_ui():
             border-color: #382d26 !important;
         }
         
-        /* OVERSIZED BORDERLESS TIMER CONTROL BUTTONS (START, PAUSE, RESTART) */
+        /* TIMER CONTROL ROUND BUTTONS (START, PAUSE, RESTART) - OUTLINED WITH UNIFIED BROWN ICON, NO BORDER */
         html body .q-btn.mono-btn.q-btn--round {
             background-color: transparent !important;
             background: transparent !important;
@@ -184,7 +186,7 @@ async def build_ui():
             color: #ffffff !important;
         }
         
-        /* UNIFIED COHERENT BROWN LINKS (SHOW MORE) */
+        /* ACTION LINKS (SHOW MORE) - MAPS TO UNIFIED BROWN */
         .blue-link {
             color: #4e3629 !important;
             transition: color 0.1s ease-in-out;
@@ -193,7 +195,7 @@ async def build_ui():
             color: #ebdcd0 !important;
         }
         
-        /* PERFECT TOGGLE MODE PRESERVATION (POMODORO / STOPWATCH) */
+        /* TIMER MODE TOGGLE (POMODORO / STOPWATCH) - LOCKED WITH ACCESSIBILITY ATTRIBUTES */
         html body .large-toggle .q-btn {
             font-size: 13px !important;
             padding: 3px 10px !important;
@@ -201,9 +203,12 @@ async def build_ui():
             box-shadow: none !important;
             transition: none !important;
         }
-        /* Lock Static Inactive Mode Style */
+        /* Static Stable Inactive State */
         html body .large-toggle .q-btn,
-        html body .large-toggle .q-btn:not(.q-btn--active),
+        html body .large-toggle .q-btn[aria-pressed="false"],
+        html body .large-toggle .q-btn[aria-pressed="false"]:hover,
+        html body .large-toggle .q-btn[aria-pressed="false"]:focus,
+        html body .large-toggle .q-btn[aria-pressed="false"]:active,
         html body .large-toggle .q-btn:not(.q-btn--active):hover,
         html body .large-toggle .q-btn:not(.q-btn--active):focus,
         html body .large-toggle .q-btn:not(.q-btn--active):active {
@@ -212,14 +217,20 @@ async def build_ui():
             border: 1px solid #16100d !important;
         }
         html body .large-toggle .q-btn .q-btn__content,
-        html body .large-toggle .q-btn:not(.q-btn--active) .q-btn__content,
+        html body .large-toggle .q-btn[aria-pressed="false"] .q-btn__content,
+        html body .large-toggle .q-btn[aria-pressed="false"]:hover .q-btn__content,
+        html body .large-toggle .q-btn[aria-pressed="false"]:focus .q-btn__content,
+        html body .large-toggle .q-btn[aria-pressed="false"]:active .q-btn__content,
         html body .large-toggle .q-btn:not(.q-btn--active):hover .q-btn__content,
         html body .large-toggle .q-btn:not(.q-btn--active):focus .q-btn__content,
         html body .large-toggle .q-btn:not(.q-btn--active):active .q-btn__content {
             color: #4a413a !important;
         }
-        /* Lock Static Active Mode Style */
-        html body .large-toggle .q-btn.q-btn--active,
+        /* Static Stable Active State - MAPS TO UNIFIED BROWN */
+        html body .large-toggle .q-btn[aria-pressed="true"],
+        html body .large-toggle .q-btn[aria-pressed="true"]:hover,
+        html body .large-toggle .q-btn[aria-pressed="true"]:focus,
+        html body .large-toggle .q-btn[aria-pressed="true"]:active,
         html body .large-toggle .q-btn.q-btn--active:hover,
         html body .large-toggle .q-btn.q-btn--active:focus,
         html body .large-toggle .q-btn.q-btn--active:active {
@@ -227,7 +238,10 @@ async def build_ui():
             background: #4e3629 !important;
             border: 1px solid #4e3629 !important;
         }
-        html body .large-toggle .q-btn.q-btn--active .q-btn__content,
+        html body .large-toggle .q-btn[aria-pressed="true"] .q-btn__content,
+        html body .large-toggle .q-btn[aria-pressed="true"]:hover .q-btn__content,
+        html body .large-toggle .q-btn[aria-pressed="true"]:focus .q-btn__content,
+        html body .large-toggle .q-btn[aria-pressed="true"]:active .q-btn__content,
         html body .large-toggle .q-btn.q-btn--active:hover .q-btn__content,
         html body .large-toggle .q-btn.q-btn--active:focus .q-btn__content,
         html body .large-toggle .q-btn.q-btn--active:active .q-btn__content {
@@ -239,7 +253,7 @@ async def build_ui():
             opacity: 0 !important;
         }
         
-        /* UTILITY ACCESSIBILITY PLANES (Help and Settings) */
+        /* FLAT ICON INTERACTIVE BUTTONS (Help and Settings) */
         .q-btn.text-grey, .q-btn.text-grey .q-icon {
             color: #59514a !important;
         }
@@ -247,13 +261,25 @@ async def build_ui():
             color: #ebdcd0 !important;
         }
         
-        .q-field__native, .q-field__input {
-            color: #b5a499 !important;
-            font-size: 15px !important;
+        /* DIALOG FORM LABELS AND SELECTORS CONFIGURATION OVERRIDE */
+        html body .q-dialog .q-field__label,
+        html body .q-dialog .q-field__native,
+        html body .q-dialog .q-field__input,
+        html body .q-dialog .q-field__prefix,
+        html body .q-dialog .q-field__suffix {
+            color: #ebdcd0 !important;
         }
-        .q-field--outlined .q-field__control { border: 1px solid #16100d !important; border-radius: 0px !important; }
+        html body .q-dialog .q-field--outlined .q-field__control {
+            border: 1px solid #16100d !important;
+        }
+        html body .q-dialog .mono-card .text-white {
+            color: #ebdcd0 !important;
+        }
+        html body .q-dialog .mono-card .text-neutral-500 {
+            color: #59514a !important;
+        }
         
-        /* HOLLOW PROGRESS CONTAINER CONTEXT */
+        /* PROGRESS BAR: HOLLOW CONTEXT WITH DARK UNIFIED BROWN BORDER */
         html body .q-linear-progress { 
             background-color: #000000 !important; 
             background: #000000 !important;
@@ -277,35 +303,13 @@ async def build_ui():
             animation: gradient-flow-right 3s linear infinite !important;
         }
         
-        /* CONTEXTUAL HOVER SHORTCUT BUTTONS */
+        /* SKIP BREAK LINK SHORTCUT BUTTON */
         .skip-btn-custom {
             color: #59514a !important;
         }
         .skip-btn-custom:hover {
             color: #ebdcd0 !important;
         }
-
-        /* ANCHORED OVERRIDES TO SUBDUE ALL NATIVE STYLES WITH ABSOLUTE CERTAINTY */
-        /* Core High Visibility Group: Greeting, Timer, Numbers, Active Suggestion, Panel Card Titles */
-        html body .text-white, 
-        html body [class*="text-white"],
-        html body .text-neutral-300, 
-        html body [class*="text-neutral-300"],
-        html body .text-neutral-400.uppercase,
-        html body [class*="text-neutral-400"].uppercase,
-        html body .text-5xl { 
-            color: #ebdcd0 !important; 
-        }
-        /* Muted Passive Structural Label Group: Pace, Weekly Goal, Total Hours, Total Focus Days etc. */
-        html body .text-neutral-500, 
-        html body [class*="text-neutral-500"],
-        html body .text-neutral-400:not(.uppercase),
-        html body [class*="text-neutral-400"]:not(.uppercase) { 
-            color: #59514a !important; 
-        }
-        .text-neutral-600 { color: #382d26 !important; }
-        .bg-neutral-950 { background-color: #000000 !important; }
-        .border-neutral-950 { border-color: #16100d !important; }
     </style>
     ''')
 
@@ -325,7 +329,6 @@ async def build_ui():
             pomo_input = ui.number('Focus Period (min)', value=settings.get_pomodoro_minutes(), format='%.0f').classes('w-full mb-2')
             break_input = ui.number('Break Period (min)', value=settings.get_break_minutes(), format='%.0f').classes('w-full mb-2')
             goal_input = ui.number('Weekly Target (hours)', value=settings.get_weekly_goal_hours(), format='%.0f').classes('w-full mb-4')
-            auto_rotate = ui.switch('Auto-rotate suggestion daily', value=settings.get_auto_rotate()).classes('w-full mb-4 text-xs')
             
             def confirm_reset():
                 with ui.dialog() as confirm_dialog, ui.card().classes('w-72 rounded-none p-4 mono-card'):
@@ -352,13 +355,11 @@ async def build_ui():
                 pomo_val = int(pomo_input.value) if pomo_input.value is not None else 25
                 break_val = int(break_input.value) if break_input.value is not None else 5
                 goal_val = int(goal_input.value) if goal_input.value is not None else 10
-                rotate_val = bool(auto_rotate.value)
 
                 def b_save():
                     settings.set_setting('pomodoro_minutes', pomo_val)
                     settings.set_setting('break_minutes', break_val)
                     settings.set_setting('weekly_goal_hours', goal_val)
-                    settings.set_auto_rotate(rotate_val)
                     focus_timer.sync_durations()
                     refresh_global_cache()
                 await asyncio.get_running_loop().run_in_executor(None, b_save)
@@ -431,6 +432,8 @@ async def build_ui():
     def open_help_panel():
         with ui.dialog() as dialog, ui.card().classes('w-[420px] rounded-none p-4 mono-card'):
             ui.label('Information').classes('text-xs frappe-light uppercase tracking-wider mb-3 w-full pb-1 mono-divider')
+            
+            ui.html('<div class="text-xs frappe-light uppercase tracking-wider mb-3"><b>C</b>onsistency <b>a</b>nd <b>F</b>ocus <b>E</b>ngine</div>')
             
             ui.label('CaFE features two main operating modes: a Pomodoro loop that automatically alternates between Focus and Break intervals, and a Stopwatch.').classes('text-xs frappe-dark mb-3 leading-relaxed')
             ui.label('During Pomodoro rest states, a contextual "Skip Break »" shortcut becomes available at the bottom right.').classes('text-xs frappe-dark mb-3 leading-relaxed')
@@ -537,20 +540,20 @@ async def build_ui():
 
         if focus_timer.state.mode == 'pomodoro':
             timer_status_label.text = 'Focus'
-            timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 3px 6px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; border-radius: 2px; line-height: 1.1;')
+            timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 1px 6px 3px 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
             timer_status_label.set_visibility(True)
-            mode_label = 'Focus'
+            mode_label = 'Focus ☕'
         elif focus_timer.state.mode == 'break':
             timer_status_label.text = 'Break'
-            timer_status_label.style('color: #a3b18a; background-color: rgba(163, 177, 138, 0.06); border: 0.5px solid rgba(163, 177, 138, 0.2); padding: 3px 6px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; border-radius: 2px; line-height: 1.1;')
+            timer_status_label.style('color: #a3b18a; background-color: rgba(163, 177, 138, 0.06); border: 0.5px solid rgba(163, 177, 138, 0.2); padding: 1px 6px 3px 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
             timer_status_label.set_visibility(True)
-            mode_label = 'Break'
+            mode_label = 'Break ☕'
         else:
             timer_status_label.set_visibility(False)
             mode_label = 'Stopwatch'
 
         timer_label.text = focus_timer.display_time
-        ui.page_title(f"{focus_timer.display_time} · {mode_label} ☕︎")
+        ui.page_title(f"{focus_timer.display_time} · {mode_label}︎")
 
         skip_btn.set_visibility(is_break)
         reset_btn.set_visibility(is_pomo_mode and status != 'idle')
@@ -627,7 +630,7 @@ async def build_ui():
 
     with ui.column().classes('w-full max-w-4xl mx-auto p-4 gap-4').style('background-color: #000000;'):
         
-        clock_label = ui.label('').classes('frappe-dark tracking-wider text-xs pl-1')
+        clock_label = ui.label('').classes('clock-text tracking-wider text-xs pl-1')
         
         with ui.column().classes('w-full gap-4 p-4 mono-card'):
             
@@ -686,7 +689,7 @@ async def build_ui():
                 ).classes('large-toggle mt-1').props('dense unevaluated flat')
                 
                 with ui.column().classes('w-full items-center mt-1'):
-                    timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light mb-3 tracking-normal')
+                    timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light tracking-normal').style('margin-top: 24px; margin-bottom: 24px;')
                     
                     with ui.row().classes('gap-4 h-10 items-center justify-center w-full'):
                         start_pause_btn = ui.button(on_click=toggle_start_pause).classes('mono-btn').props('flat round size=lg')
