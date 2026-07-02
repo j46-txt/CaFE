@@ -157,7 +157,7 @@ async def build_ui():
             border-color: #382d26 !important;
         }
         
-        /* TIMER CONTROL ROUND BUTTONS (START, PAUSE, RESTART) - UNIFIED COLORS WITH PANEL BUTTONS */
+        /* TIMER CONTROL ROUND BUTTONS (RESTORED TO ORIGINAL UNIFIED PROGRESS BAR BROWN) */
         html body .q-btn.timer-btn,
         html body .q-btn.timer-btn:hover,
         html body .q-btn.timer-btn:focus,
@@ -169,20 +169,20 @@ async def build_ui():
         }
         html body .q-btn.timer-btn .q-icon,
         html body .q-btn.timer-btn .q-btn__content {
-            color: #59514a !important; /* Identical to icon-panel-btn */
+            color: #4e3629 !important;
             font-size: 30px !important;
             transition: color 0.1s ease-in-out;
         }
         html body .q-btn.timer-btn:hover .q-icon,
         html body .q-btn.timer-btn:hover .q-btn__content {
-            color: #ebdcd0 !important; /* Identical to icon-panel-btn hover */
+            color: #875d46 !important; /* Unified brown hover */
         }
         html body .q-btn.timer-btn:focus .q-icon,
         html body .q-btn.timer-btn:active .q-icon {
-            color: #59514a !important;
+            color: #4e3629 !important;
         }
         html body .q-btn.timer-btn:hover:focus .q-icon {
-            color: #ebdcd0 !important;
+            color: #875d46 !important;
         }
         
         /* HELP AND SETTINGS BUTTONS - RADICAL HOVER OVERRIDE */
@@ -210,7 +210,7 @@ async def build_ui():
             color: #ebdcd0 !important;
         }
 
-        /* INLINE SUGGESTION EDIT PENCIL BUTTON */
+        /* INLINE SUGGESTION EDIT PENCIL BUTTON (SUPERSCRIPT EXPONENT DESIGN) */
         html body .edit-pencil-btn,
         html body .edit-pencil-btn:hover,
         html body .edit-pencil-btn:focus,
@@ -219,14 +219,19 @@ async def build_ui():
             background-color: transparent !important;
             box-shadow: none !important;
             border: none !important;
+            align-self: flex-start !important;
+            position: relative !important;
+            top: -6px !important; /* Raised up like an exponent */
+            margin-left: -2px !important;
+            padding: 0 !important;
         }
         html body .edit-pencil-btn .q-icon {
-            color: #4e3629 !important; /* Elegant App Brown Core */
-            font-size: 14px !important;
+            color: #4e3629 !important;
+            font-size: 10px !important; /* Ultra small footprint */
             transition: color 0.1s ease-in-out;
         }
         html body .edit-pencil-btn:hover .q-icon {
-            color: #875d46 !important; /* Balanced Brown Hover */
+            color: #875d46 !important;
         }
         
         .inline-mono-btn {
@@ -268,13 +273,13 @@ async def build_ui():
         
         /* DIALOG CONFIGURATION CORES - SEPARATED LABEL AND INPUT VALUE COLORS */
         html body .q-dialog .q-field__label {
-            color: #59514a !important; /* Labels escuros em tom passivo */
+            color: #59514a !important;
         }
         html body .q-dialog .q-field__native,
         html body .q-dialog .q-field__input,
         html body .q-dialog .q-field__prefix,
         html body .q-dialog .q-field__suffix {
-            color: #ebdcd0 !important; /* Números e valores customizados claros */
+            color: #ebdcd0 !important;
         }
         html body .q-dialog .q-field--outlined .q-field__control {
             border: 1px solid #16100d !important;
@@ -339,38 +344,50 @@ async def build_ui():
         .bg-neutral-950 { background-color: #000000 !important; }
         .border-neutral-950 { border-color: #16100d !important; }
 
-        /* LATENCY-PROOFED DUAL ALTERNATING TOGGLE RULES WITH SUPREME SPECIFICITY OVERRIDES */
-        html body .large-toggle .q-btn {
+        /* LAG-PROOFED DISCRETE BUTTON TOGGLE ARCHITECTURE */
+        html body .toggle-btn-pomo, html body .toggle-btn-sw {
             font-size: 13px !important;
-            padding: 3px 10px !important;
+            padding: 3px 14px !important;
             border-radius: 0px !important;
             box-shadow: none !important;
+            text-transform: uppercase !important;
+            height: 24px !important;
+            min-height: 24px !important;
             transition: none !important;
         }
-        /* Inactive Buttons State (Including Forced Disabled via Latency Locks) */
-        html body .large-toggle .q-btn:not(.q-btn--active),
-        html body .large-toggle .q-btn.disabled:not(.q-btn--active) {
-            background-color: #000000 !important;
-            background: #000000 !important;
-            border: 1px solid #16100d !important;
-            opacity: 1 !important;
+        html body .toggle-btn-pomo {
+            border-top-left-radius: 2px !important;
+            border-bottom-left-radius: 2px !important;
         }
-        html body .large-toggle .q-btn:not(.q-btn--active) *,
-        html body .large-toggle .q-btn.disabled:not(.q-btn--active) * {
-            color: #59514a !important; /* Perfect passive readable matching color */
-            opacity: 1 !important;
+        html body .toggle-btn-sw {
+            border-top-right-radius: 2px !important;
+            border-bottom-right-radius: 2px !important;
+            margin-left: -1px !important;
         }
-        /* Active Buttons State (Including Forced Disabled via Latency Locks) */
-        html body .large-toggle .q-btn.q-btn--active,
-        html body .large-toggle .q-btn.disabled.q-btn--active {
+        /* Active Style Matrix */
+        html body .toggle-btn-active,
+        html body .toggle-btn-active.disabled {
             background-color: #4e3629 !important;
             background: #4e3629 !important;
             border: 1px solid #4e3629 !important;
             opacity: 1 !important;
         }
-        html body .large-toggle .q-btn.q-btn--active *,
-        html body .large-toggle .q-btn.disabled.q-btn--active * {
-            color: #ebdcd0 !important; /* Pure uniform text selection color */
+        html body .toggle-btn-active *, 
+        html body .toggle-btn-active.disabled * {
+            color: #ebdcd0 !important;
+            opacity: 1 !important;
+        }
+        /* Inactive Style Matrix */
+        html body .toggle-btn-inactive,
+        html body .toggle-btn-inactive.disabled {
+            background-color: #000000 !important;
+            background: #000000 !important;
+            border: 1px solid #16100d !important;
+            opacity: 1 !important;
+        }
+        html body .toggle-btn-inactive *, 
+        html body .toggle-btn-inactive.disabled * {
+            color: #59514a !important;
             opacity: 1 !important;
         }
     </style>
@@ -504,7 +521,7 @@ async def build_ui():
                         
             with ui.column().classes('w-full pt-2.5 mt-1 gap-1 text-[11px] frappe-dark').style('border-top: 1px solid #141414;'):
                 with ui.row().classes('items-center gap-2 hover:text-white transition-colors cursor-pointer').on('click', lambda: ui.navigate.to('https://github.com/j46-txt/CaFE', new_tab=True)):
-                    ui.html('''<svg height="14" width="14" viewBox="0 0 16 16" fill="currentColor" style="display: block; vertical-align: middle; width: 14px; height: 14px; fill: currentColor; overflow: visible;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.85.54 1.71 0 1.24-.01 2.23-.01 2.53 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>''')
+                    ui.html('''<svg height="14" width="14" viewBox="0 0 16 16" fill="currentColor" style="display: block; vertical-align: middle; width: 14px; height: 14px; fill: currentColor; overflow: visible;"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2;3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.85.54 1.71 0 1.24-.01 2.23-.01 2.53 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>''')
                     ui.label('github.com/j46-txt/CaFE')
             
             ui.button('Close Info', on_click=dialog.close).classes('w-full mono-btn mt-4 text-xs')
@@ -622,13 +639,21 @@ async def build_ui():
         reset_btn.set_visibility(is_pomo_mode and status != 'idle')
         stop_btn.set_visibility(is_stopwatch and status != 'idle')
 
-        if status == 'idle':
-            mode_toggle.enable()
-            target_toggle_val = 'Pomodoro' if focus_timer.state.mode == 'pomodoro' else 'Stopwatch'
-            if mode_toggle.value != target_toggle_val:
-                mode_toggle.value = target_toggle_val
+        # REGRA DE RE-ACOPLAMENTO DOS BOTÕES DISCRETOS DE ALTERNÂNCIA (LAG-PROOF)
+        is_pomo_active = focus_timer.state.mode in ('pomodoro', 'break')
+        if is_pomo_active:
+            pomo_toggle_btn.classes(replace='toggle-btn-pomo toggle-btn-active')
+            stopwatch_toggle_btn.classes(replace='toggle-btn-sw toggle-btn-inactive')
         else:
-            mode_toggle.disable()
+            pomo_toggle_btn.classes(replace='toggle-btn-pomo toggle-btn-inactive')
+            stopwatch_toggle_btn.classes(replace='toggle-btn-sw toggle-btn-active')
+
+        if status == 'idle':
+            pomo_toggle_btn.enable()
+            stopwatch_toggle_btn.enable()
+        else:
+            pomo_toggle_btn.disable()
+            stopwatch_toggle_btn.disable()
 
         active_focus_seconds = 0
         if status == 'running':
@@ -673,7 +698,8 @@ async def build_ui():
         reset_btn.update()
         stop_btn.update()
         skip_btn.update()
-        mode_toggle.update()
+        pomo_toggle_btn.update()
+        stopwatch_toggle_btn.update()
         timer_status_label.update()
         week_progress.update()
 
@@ -687,7 +713,6 @@ async def build_ui():
         date_str = now.strftime('%d/%m/%Y')
         day_str = now.strftime('%A')
         time_str = now.strftime('%H:%M')
-        # Encapsula cada segmento e pipe em estilos inline explícitos para congelar qualquer leak cromático do Quasar
         clock_label.content = f'<div style="color: #59514a; font-size: 12px; font-family: \'Courier Prime\', monospace !important;"><span style="color: #59514a;">{date_str}</span> <span style="color: #59514a;">|</span> <span style="color: #59514a;">{day_str}</span> <span style="color: #59514a;">|</span> <span style="color: #59514a;">{time_str}</span></div>'
         greeting_label.text = get_greeting()
         update_display()
@@ -707,7 +732,7 @@ async def build_ui():
                     with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
                         ui.label("Today's suggestion:").classes('frappe-dark text-sm')
                         suggestion_val_label = ui.label('').classes('frappe-light uppercase text-sm')
-                        edit_suggestion_inline_btn = ui.button(icon='edit', on_click=open_suggestions_panel).props('flat dense size=xs no-ripple').classes('edit-pencil-btn').style('margin-top: -2px; padding: 0; width: 14px; min-width: 14px;')
+                        edit_suggestion_inline_btn = ui.button(icon='edit', on_click=open_suggestions_panel).props('flat dense size=xs no-ripple').classes('edit-pencil-btn')
                         add_suggestion_inline_btn = ui.button('+ Define Suggestions', on_click=open_suggestions_panel).classes('inline-mono-btn')
                 
                 with ui.row().classes('gap-2 items-center'):
@@ -748,11 +773,10 @@ async def build_ui():
                     with ui.row().classes('absolute right-0 top-0 bottom-2 items-center'):
                         timer_status_label = ui.label('[Focus]').classes('rounded-none font-mono')
                 
-                mode_toggle = ui.toggle(
-                    ['Pomodoro', 'Stopwatch'],
-                    value=focus_timer.state.mode.capitalize(),
-                    on_change=lambda e: (focus_timer.set_mode(e.value), update_display())
-                ).classes('large-toggle mt-1').props('dense unelevated')
+                # ARQUITETURA DE ACESSALIBILIDADE SEM DESINCRONIZAÇÃO EM REDE (DISCRETE TOGGLE ROW)
+                with ui.row().classes('mt-1 gap-0 justify-center items-center'):
+                    pomo_toggle_btn = ui.button('Pomodoro', on_click=lambda: (focus_timer.set_mode('Pomodoro'), update_display())).props('unelevated dense no-ripple')
+                    stopwatch_toggle_btn = ui.button('Stopwatch', on_click=lambda: (focus_timer.set_mode('Stopwatch'), update_display())).props('unelevated dense no-ripple')
                 
                 with ui.column().classes('w-full items-center mt-1'):
                     timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light tracking-normal')
