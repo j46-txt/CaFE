@@ -72,6 +72,8 @@ def load_initial_stats():
 async def build_ui():
     """Builds the main user interface layout asynchronously without event loop stalls."""
     global active_clients
+
+    ui.colors(primary='#b08968', positive='#a3b18a')
     
     client = ui.context.client
     active_clients.add(client)
