@@ -165,7 +165,7 @@ async def build_ui():
             transition: color 0.1s ease-in-out;
         }
         .blue-link:hover {
-            color: #9c6f52 !important;
+            color: #7d5337 !important;
         }
         
         .large-toggle .q-btn {
