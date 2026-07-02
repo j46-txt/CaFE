@@ -73,7 +73,7 @@ async def build_ui():
     """Builds the main user interface layout asynchronously without event loop stalls."""
     global active_clients
 
-    ui.colors(primary='#b08968', positive='#a3b18a')
+    ui.colors(primary='#6f4e37', positive='#a3b18a')
     
     client = ui.context.client
     active_clients.add(client)
@@ -161,11 +161,11 @@ async def build_ui():
         }
         
         .blue-link {
-            color: #b08968 !important;
+            color: #7d5337 !important;
             transition: color 0.1s ease-in-out;
         }
         .blue-link:hover {
-            color: #c5a080 !important;
+            color: #9c6f52 !important;
         }
         
         .large-toggle .q-btn {
@@ -431,7 +431,7 @@ async def build_ui():
 
         if focus_timer.state.mode == 'pomodoro':
             timer_status_label.text = 'Focus'
-            timer_status_label.style('color: #c5a080; background-color: rgba(197, 160, 128, 0.06); border: 0.5px solid #c5a080; padding: 3px 6px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; border-radius: 2px; line-height: 1.1;')
+            timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 3px 6px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; border-radius: 2px; line-height: 1.1;')
             timer_status_label.set_visibility(True)
             mode_label = 'Focus'
         elif focus_timer.state.mode == 'break':
