@@ -100,7 +100,6 @@ async def build_ui():
         
         body {
             background-color: #000000 !important;
-            color: #b5a499 !important;
             font-size: 15px !important;
         }
         
@@ -137,7 +136,7 @@ async def build_ui():
             border-color: #382d26 !important;
         }
         
-        /* TIMER CONTROL ROUND BUTTONS (START, PAUSE, RESTART) - OUTLINED WITH UNIFIED BROWN ICON, NO BORDER */
+        /* TIMER CONTROL ROUND BUTTONS (START, PAUSE, RESTART) - PURE ICON HOVER, NO RECTANGLE BACKGROUND */
         html body .q-btn.mono-btn.q-btn--round {
             background-color: transparent !important;
             background: transparent !important;
@@ -149,13 +148,16 @@ async def build_ui():
             color: #4e3629 !important;
             font-size: 38px !important;
         }
+        html body .q-btn.mono-btn.q-btn--round .q-focus-helper {
+            display: none !important; /* Eliminates the rectangular background highlight completely */
+        }
         html body .q-btn.mono-btn.q-btn--round:hover {
             background-color: transparent !important;
-            border: none !important;
+            background: transparent !important;
         }
         html body .q-btn.mono-btn.q-btn--round:hover .q-icon,
         html body .q-btn.mono-btn.q-btn--round:hover .q-btn__content {
-            color: #ebdcd0 !important;
+            color: #875d46 !important; /* Matches unified lighter brown hover */
         }
         
         .inline-mono-btn {
@@ -186,13 +188,13 @@ async def build_ui():
             color: #ffffff !important;
         }
         
-        /* ACTION LINKS (SHOW MORE) - MAPS TO UNIFIED BROWN */
+        /* UNIFIED COHERENT LIGHTER BROWN LINKS (SHOW MORE) */
         .blue-link {
             color: #4e3629 !important;
             transition: color 0.1s ease-in-out;
         }
         .blue-link:hover {
-            color: #ebdcd0 !important;
+            color: #875d46 !important; /* Synchronized with control buttons hover */
         }
         
         /* TIMER MODE TOGGLE (POMODORO / STOPWATCH) - LOCKED WITH ACCESSIBILITY ATTRIBUTES */
@@ -217,16 +219,13 @@ async def build_ui():
             border: 1px solid #16100d !important;
         }
         html body .large-toggle .q-btn .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="false"] .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="false"]:hover .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="false"]:focus .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="false"]:active .q-btn__content,
+        html body .large-toggle .q-btn:not(.q-btn--active) .q-btn__content,
         html body .large-toggle .q-btn:not(.q-btn--active):hover .q-btn__content,
         html body .large-toggle .q-btn:not(.q-btn--active):focus .q-btn__content,
         html body .large-toggle .q-btn:not(.q-btn--active):active .q-btn__content {
             color: #4a413a !important;
         }
-        /* Static Stable Active State - MAPS TO UNIFIED BROWN */
+        /* Static Stable Active State */
         html body .large-toggle .q-btn[aria-pressed="true"],
         html body .large-toggle .q-btn[aria-pressed="true"]:hover,
         html body .large-toggle .q-btn[aria-pressed="true"]:focus,
@@ -310,6 +309,28 @@ async def build_ui():
         .skip-btn-custom:hover {
             color: #ebdcd0 !important;
         }
+
+        /* ANCHORED OVERRIDES TO SUBDUE ALL NATIVE STYLES WITH ABSOLUTE CERTAINTY */
+        /* Core High Visibility Group: Greeting, Timer, Numbers, Active Suggestion, Panel Card Titles */
+        html body .text-white, 
+        html body [class*="text-white"],
+        html body .text-neutral-300, 
+        html body [class*="text-neutral-300"],
+        html body .text-neutral-400.uppercase,
+        html body [class*="text-neutral-400"].uppercase,
+        html body .text-5xl { 
+            color: #ebdcd0 !important; 
+        }
+        /* Muted Passive Structural Label Group: Pace, Weekly Goal, Total Hours, Total Focus Days etc. */
+        html body .text-neutral-500, 
+        html body [class*="text-neutral-500"],
+        html body .text-neutral-400:not(.uppercase),
+        html body [class*="text-neutral-400"]:not(.uppercase) { 
+            color: #59514a !important; 
+        }
+        .text-neutral-600 { color: #382d26 !important; }
+        .bg-neutral-950 { background-color: #000000 !important; }
+        .border-neutral-950 { border-color: #16100d !important; }
     </style>
     ''')
 
@@ -540,12 +561,12 @@ async def build_ui():
 
         if focus_timer.state.mode == 'pomodoro':
             timer_status_label.text = 'Focus'
-            timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 1px 6px 3px 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
+            timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 5px 4px 0px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
             timer_status_label.set_visibility(True)
             mode_label = 'Focus ☕'
         elif focus_timer.state.mode == 'break':
             timer_status_label.text = 'Break'
-            timer_status_label.style('color: #a3b18a; background-color: rgba(163, 177, 138, 0.06); border: 0.5px solid rgba(163, 177, 138, 0.2); padding: 1px 6px 3px 5px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
+            timer_status_label.style('color: #a3b18a; background-color: rgba(163, 177, 138, 0.06); border: 0.5px solid rgba(163, 177, 138, 0.2); padding: 5px 4px 0px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
             timer_status_label.set_visibility(True)
             mode_label = 'Break ☕'
         else:
@@ -689,7 +710,7 @@ async def build_ui():
                 ).classes('large-toggle mt-1').props('dense unevaluated flat')
                 
                 with ui.column().classes('w-full items-center mt-1'):
-                    timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light tracking-normal').style('margin-top: 24px; margin-bottom: 24px;')
+                    timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light tracking-normal').style('transform: translateY(6px);')
                     
                     with ui.row().classes('gap-4 h-10 items-center justify-center w-full'):
                         start_pause_btn = ui.button(on_click=toggle_start_pause).classes('mono-btn').props('flat round size=lg')
