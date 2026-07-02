@@ -73,7 +73,7 @@ async def build_ui():
     """Builds the main user interface layout asynchronously without event loop stalls."""
     global active_clients
 
-    ui.colors(primary='#b08968', positive='#a3b18a')
+    ui.colors(primary='#6f4e37', positive='#a3b18a')
     
     client = ui.context.client
     active_clients.add(client)
@@ -132,29 +132,30 @@ async def build_ui():
         
         .inline-mono-btn {
             background-color: #000000 !important;
-            border: 1px solid #b08968 !important;
-            color: #b08968 !important;
+            border: 1px solid #6f4e37 !important;
+            color: #6f4e37 !important;
             text-transform: uppercase !important;
             border-radius: 2px !important;
             box-shadow: none !important;
             font-size: 11px !important;
             padding: 0px 8px !important;
-            height: 22px !important;
-            line-height: 22px !important;
+            height: 20px !important;
+            min-height: 20px !important;
+            line-height: 20px !important;
             transition: all 0.1s ease-in-out;
         }
         .inline-mono-btn:hover {
             background-color: #111111 !important;
-            color: #ffffff !important;
-            border-color: #ffffff !important;
+            color: #b08968 !important;
+            border-color: #b08968 !important;
         }
         
         .blue-link {
-            color: #b08968 !important;
+            color: #6f4e37 !important;
             transition: color 0.1s ease-in-out;
         }
         .blue-link:hover {
-            color: #6f4e37 !important;
+            color: #b08968 !important;
         }
         
         .large-toggle .q-btn {
@@ -182,7 +183,7 @@ async def build_ui():
             100% { background-position: 0% 50%; }
             }
         .q-linear-progress__model {
-            background: linear-gradient(90deg, #111111, #b08968, #111111) !important;
+            background: linear-gradient(90deg, #111111, #6f4e37, #111111) !important;
             background-size: 200% 200% !important;
             animation: gradient-flow-right 3s linear infinite !important;
         }
@@ -419,7 +420,7 @@ async def build_ui():
 
         if focus_timer.state.mode == 'pomodoro':
             timer_status_label.text = 'Focus'
-            timer_status_label.style('color: #b08968; background-color: rgba(176, 137, 104, 0.06); border: 0.5px solid #b08968; padding: 3px 6px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; border-radius: 2px; line-height: 1.1;')
+            timer_status_label.style('color: #6f4e37; background-color: rgba(111, 78, 55, 0.06); border: 0.5px solid #6f4e37; padding: 3px 6px 2px 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; border-radius: 2px; line-height: 1.1;')
             timer_status_label.set_visibility(True)
             mode_label = 'Focus'
         elif focus_timer.state.mode == 'break':
@@ -517,7 +518,7 @@ async def build_ui():
                 with ui.column().classes('gap-1'):
                     greeting_label = ui.label('').classes('text-neutral-300')
                     
-                    with ui.row().classes('items-center gap-1.5').style('height: 24px; max-height: 24px; overflow: hidden;'):
+                    with ui.row().classes('items-center gap-1.5').style('height: 26px; max-height: 26px;'):
                         ui.label("Today's suggestion:").classes('text-neutral-500 text-sm')
                         suggestion_val_label = ui.label('').classes('text-white uppercase text-sm')
                         edit_suggestion_inline_btn = ui.button(icon='edit', on_click=open_suggestions_panel).props('flat dense size=xs color=grey').style('margin-top: -2px; padding: 0; width: 12px; min-width: 12px;')
