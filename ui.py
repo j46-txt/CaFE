@@ -100,7 +100,6 @@ async def build_ui():
         
         body {
             background-color: #000000 !important;
-            color: #b5a499 !important;
             font-size: 15px !important;
         }
         
@@ -136,17 +135,17 @@ async def build_ui():
             border-color: #382d26 !important;
         }
         
-        /* TIMER CONTROL ROUND BUTTONS (START, PAUSE, RESTART) - OUTLINED WITH UNIFIED BROWN ICON, NO BORDER */
+        /* OVERSIZED BORDERLESS TIMER CONTROL BUTTONS (START, PAUSE, RESTART) */
         html body .q-btn.mono-btn.q-btn--round {
-            background-color: #000000 !important;
-            background: #000000 !important;
+            background-color: transparent !important;
+            background: transparent !important;
             border: none !important;
             box-shadow: none !important;
         }
         html body .q-btn.mono-btn.q-btn--round .q-icon,
         html body .q-btn.mono-btn.q-btn--round .q-btn__content {
             color: #4e3629 !important;
-            font-size: 28px !important;
+            font-size: 38px !important;
         }
         html body .q-btn.mono-btn.q-btn--round:hover {
             background-color: transparent !important;
@@ -154,7 +153,7 @@ async def build_ui():
         }
         html body .q-btn.mono-btn.q-btn--round:hover .q-icon,
         html body .q-btn.mono-btn.q-btn--round:hover .q-btn__content {
-            color: #6f4e37 !important;
+            color: #ebdcd0 !important;
         }
         
         .inline-mono-btn {
@@ -185,7 +184,7 @@ async def build_ui():
             color: #ffffff !important;
         }
         
-        /* ACTION LINKS (SHOW MORE) - MAPS TO UNIFIED BROWN */
+        /* UNIFIED COHERENT BROWN LINKS (SHOW MORE) */
         .blue-link {
             color: #4e3629 !important;
             transition: color 0.1s ease-in-out;
@@ -194,7 +193,7 @@ async def build_ui():
             color: #ebdcd0 !important;
         }
         
-        /* TIMER MODE TOGGLE (POMODORO / STOPWATCH) - LOCKED WITH ACCESSIBILITY ATTRIBUTES */
+        /* PERFECT TOGGLE MODE PRESERVATION (POMODORO / STOPWATCH) */
         html body .large-toggle .q-btn {
             font-size: 13px !important;
             padding: 3px 10px !important;
@@ -202,12 +201,9 @@ async def build_ui():
             box-shadow: none !important;
             transition: none !important;
         }
-        /* Static Stable Inactive State */
+        /* Lock Static Inactive Mode Style */
         html body .large-toggle .q-btn,
-        html body .large-toggle .q-btn[aria-pressed="false"],
-        html body .large-toggle .q-btn[aria-pressed="false"]:hover,
-        html body .large-toggle .q-btn[aria-pressed="false"]:focus,
-        html body .large-toggle .q-btn[aria-pressed="false"]:active,
+        html body .large-toggle .q-btn:not(.q-btn--active),
         html body .large-toggle .q-btn:not(.q-btn--active):hover,
         html body .large-toggle .q-btn:not(.q-btn--active):focus,
         html body .large-toggle .q-btn:not(.q-btn--active):active {
@@ -216,20 +212,14 @@ async def build_ui():
             border: 1px solid #16100d !important;
         }
         html body .large-toggle .q-btn .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="false"] .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="false"]:hover .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="false"]:focus .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="false"]:active .q-btn__content,
+        html body .large-toggle .q-btn:not(.q-btn--active) .q-btn__content,
         html body .large-toggle .q-btn:not(.q-btn--active):hover .q-btn__content,
         html body .large-toggle .q-btn:not(.q-btn--active):focus .q-btn__content,
         html body .large-toggle .q-btn:not(.q-btn--active):active .q-btn__content {
             color: #4a413a !important;
         }
-        /* Static Stable Active State - MAPS TO UNIFIED BROWN */
-        html body .large-toggle .q-btn[aria-pressed="true"],
-        html body .large-toggle .q-btn[aria-pressed="true"]:hover,
-        html body .large-toggle .q-btn[aria-pressed="true"]:focus,
-        html body .large-toggle .q-btn[aria-pressed="true"]:active,
+        /* Lock Static Active Mode Style */
+        html body .large-toggle .q-btn.q-btn--active,
         html body .large-toggle .q-btn.q-btn--active:hover,
         html body .large-toggle .q-btn.q-btn--active:focus,
         html body .large-toggle .q-btn.q-btn--active:active {
@@ -237,10 +227,7 @@ async def build_ui():
             background: #4e3629 !important;
             border: 1px solid #4e3629 !important;
         }
-        html body .large-toggle .q-btn[aria-pressed="true"] .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="true"]:hover .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="true"]:focus .q-btn__content,
-        html body .large-toggle .q-btn[aria-pressed="true"]:active .q-btn__content,
+        html body .large-toggle .q-btn.q-btn--active .q-btn__content,
         html body .large-toggle .q-btn.q-btn--active:hover .q-btn__content,
         html body .large-toggle .q-btn.q-btn--active:focus .q-btn__content,
         html body .large-toggle .q-btn.q-btn--active:active .q-btn__content {
@@ -252,7 +239,7 @@ async def build_ui():
             opacity: 0 !important;
         }
         
-        /* FLAT ICON INTERACTIVE BUTTONS (Help and Settings) */
+        /* UTILITY ACCESSIBILITY PLANES (Help and Settings) */
         .q-btn.text-grey, .q-btn.text-grey .q-icon {
             color: #59514a !important;
         }
@@ -266,7 +253,7 @@ async def build_ui():
         }
         .q-field--outlined .q-field__control { border: 1px solid #16100d !important; border-radius: 0px !important; }
         
-        /* PROGRESS BAR: HOLLOW CONTEXT WITH DARK UNIFIED BROWN BORDER */
+        /* HOLLOW PROGRESS CONTAINER CONTEXT */
         html body .q-linear-progress { 
             background-color: #000000 !important; 
             background: #000000 !important;
@@ -290,7 +277,7 @@ async def build_ui():
             animation: gradient-flow-right 3s linear infinite !important;
         }
         
-        /* SKIP BREAK LINK SHORTCUT BUTTON */
+        /* CONTEXTUAL HOVER SHORTCUT BUTTONS */
         .skip-btn-custom {
             color: #59514a !important;
         }
@@ -298,28 +285,22 @@ async def build_ui():
             color: #ebdcd0 !important;
         }
 
-        /* OVERRIDE SCOPES FOR DYNAMIC DATA LABELS */
-        /* High Visibility Group: Numbers, Counters, Main Timer, Greeting, Panel Card Titles */
+        /* ANCHORED OVERRIDES TO SUBDUE ALL NATIVE STYLES WITH ABSOLUTE CERTAINTY */
+        /* Core High Visibility Group: Greeting, Timer, Numbers, Active Suggestion, Panel Card Titles */
         html body .text-white, 
         html body [class*="text-white"],
-        html body .text-white *,
-        html body [class*="text-white"] *,
         html body .text-neutral-300, 
         html body [class*="text-neutral-300"],
-        html body .text-neutral-300 *,
         html body .text-neutral-400.uppercase,
         html body [class*="text-neutral-400"].uppercase,
-        html body .text-5xl,
-        html body .text-5xl * { 
+        html body .text-5xl { 
             color: #ebdcd0 !important; 
         }
-        /* Muted Static Labels Group: Pace, Weekly Goal, etc. */
+        /* Muted Passive Structural Label Group: Pace, Weekly Goal, Total Hours, Total Focus Days etc. */
         html body .text-neutral-500, 
         html body [class*="text-neutral-500"],
-        html body .text-neutral-500 *,
         html body .text-neutral-400:not(.uppercase),
-        html body [class*="text-neutral-400"]:not(.uppercase),
-        html body .text-neutral-400:not(.uppercase) * { 
+        html body [class*="text-neutral-400"]:not(.uppercase) { 
             color: #59514a !important; 
         }
         .text-neutral-600 { color: #382d26 !important; }
@@ -569,7 +550,7 @@ async def build_ui():
             mode_label = 'Stopwatch'
 
         timer_label.text = focus_timer.display_time
-        ui.page_title(f"({focus_timer.display_time}) {mode_label}")
+        ui.page_title(f"{focus_timer.display_time} · {mode_label} ☕︎")
 
         skip_btn.set_visibility(is_break)
         reset_btn.set_visibility(is_pomo_mode and status != 'idle')
