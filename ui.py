@@ -221,19 +221,20 @@ async def build_ui():
             border: none !important;
             align-self: flex-start !important;
             position: relative !important;
-            top: -6px !important; /* Raised up like an exponent */
+            top: -4px !important; /* Perfect mathematical exponent alignment */
             margin-left: -2px !important;
             padding: 0 !important;
         }
         html body .edit-pencil-btn .q-icon {
             color: #4e3629 !important;
-            font-size: 10px !important; /* Ultra small footprint */
+            font-size: 10px !important;
             transition: color 0.1s ease-in-out;
         }
         html body .edit-pencil-btn:hover .q-icon {
             color: #875d46 !important;
         }
         
+        /* DEFINE SUGGESTIONS BUTTON - STRONGLY LOCKED TO FRAPPE LIGHT NATIVE TEXT */
         .inline-mono-btn {
             background-color: #4e3629 !important;
             border: 1px solid #4e3629 !important;
@@ -249,16 +250,17 @@ async def build_ui():
             align-items: center !important;
             transition: all 0.1s ease-in-out;
         }
-        .inline-mono-btn .q-btn__content {
-            min-height: unset !important;
-            line-height: 1 !important;
-            padding: 0 !important;
-            display: flex !important;
-            align-items: center !important;
+        html body .inline-mono-btn,
+        html body .inline-mono-btn *,
+        html body .inline-mono-btn .q-btn__content {
+            color: #ebdcd0 !important;
         }
         .inline-mono-btn:hover {
             background-color: #6f4e37 !important;
             border-color: #6f4e37 !important;
+            color: #ffffff !important;
+        }
+        html body .inline-mono-btn:hover * {
             color: #ffffff !important;
         }
         
@@ -344,15 +346,13 @@ async def build_ui():
         .bg-neutral-950 { background-color: #000000 !important; }
         .border-neutral-950 { border-color: #16100d !important; }
 
-        /* LAG-PROOFED DISCRETE BUTTON TOGGLE ARCHITECTURE */
+        /* LAG-PROOFED DISCRETE BUTTON TOGGLE ARCHITECTURE (HEIGHTS UNBOUNDED TO PREVENT CLIPPING) */
         html body .toggle-btn-pomo, html body .toggle-btn-sw {
             font-size: 13px !important;
-            padding: 3px 14px !important;
+            padding: 4px 14px !important;
             border-radius: 0px !important;
             box-shadow: none !important;
             text-transform: uppercase !important;
-            height: 24px !important;
-            min-height: 24px !important;
             transition: none !important;
         }
         html body .toggle-btn-pomo {
@@ -639,14 +639,14 @@ async def build_ui():
         reset_btn.set_visibility(is_pomo_mode and status != 'idle')
         stop_btn.set_visibility(is_stopwatch and status != 'idle')
 
-        # REGRA DE RE-ACOPLAMENTO DOS BOTÕES DISCRETOS DE ALTERNÂNCIA (LAG-PROOF)
+        # ATOMIC CLASS MANAGEMENT FOR THE TOGGLE ROW (LOCKS OUT MIXED CLASHING LAYOUTS)
         is_pomo_active = focus_timer.state.mode in ('pomodoro', 'break')
         if is_pomo_active:
-            pomo_toggle_btn.classes(replace='toggle-btn-pomo toggle-btn-active')
-            stopwatch_toggle_btn.classes(replace='toggle-btn-sw toggle-btn-inactive')
+            pomo_toggle_btn.classes(add='toggle-btn-active', remove='toggle-btn-inactive')
+            stopwatch_toggle_btn.classes(add='toggle-btn-inactive', remove='toggle-btn-active')
         else:
-            pomo_toggle_btn.classes(replace='toggle-btn-pomo toggle-btn-inactive')
-            stopwatch_toggle_btn.classes(replace='toggle-btn-sw toggle-btn-active')
+            pomo_toggle_btn.classes(add='toggle-btn-inactive', remove='toggle-btn-active')
+            stopwatch_toggle_btn.classes(add='toggle-btn-active', remove='toggle-btn-inactive')
 
         if status == 'idle':
             pomo_toggle_btn.enable()
@@ -713,7 +713,8 @@ async def build_ui():
         date_str = now.strftime('%d/%m/%Y')
         day_str = now.strftime('%A')
         time_str = now.strftime('%H:%M')
-        clock_label.content = f'<div style="color: #59514a; font-size: 12px; font-family: \'Courier Prime\', monospace !important;"><span style="color: #59514a;">{date_str}</span> <span style="color: #59514a;">|</span> <span style="color: #59514a;">{day_str}</span> <span style="color: #59514a;">|</span> <span style="color: #59514a;">{time_str}</span></div>'
+        # Supreme inline styling redundancy to permanently prevent any chromatic variance across text segments
+        clock_label.content = f'<div style="color: #59514a !important; font-size: 12px; font-family: \'Courier Prime\', monospace !important;"><span style="color: #59514a !important;">{date_str}</span> <span style="color: #59514a !important;">|</span> <span style="color: #59514a !important;">{day_str}</span> <span style="color: #59514a !important;">|</span> <span style="color: #59514a !important;">{time_str}</span></div>'
         greeting_label.text = get_greeting()
         update_display()
 
@@ -773,10 +774,10 @@ async def build_ui():
                     with ui.row().classes('absolute right-0 top-0 bottom-2 items-center'):
                         timer_status_label = ui.label('[Focus]').classes('rounded-none font-mono')
                 
-                # ARQUITETURA DE ACESSALIBILIDADE SEM DESINCRONIZAÇÃO EM REDE (DISCRETE TOGGLE ROW)
+                # RE-CONFIGURED DUAL EXPLICIT TOGGLE ACTION MATRIX (CLEAN EXTENSION ARCHITECTURE)
                 with ui.row().classes('mt-1 gap-0 justify-center items-center'):
-                    pomo_toggle_btn = ui.button('Pomodoro', on_click=lambda: (focus_timer.set_mode('Pomodoro'), update_display())).props('unelevated dense no-ripple')
-                    stopwatch_toggle_btn = ui.button('Stopwatch', on_click=lambda: (focus_timer.set_mode('Stopwatch'), update_display())).props('unelevated dense no-ripple')
+                    pomo_toggle_btn = ui.button('Pomodoro', on_click=lambda: (focus_timer.set_mode('Pomodoro'), update_display())).props('unelevated dense no-ripple').classes('toggle-btn-pomo')
+                    stopwatch_toggle_btn = ui.button('Stopwatch', on_click=lambda: (focus_timer.set_mode('Stopwatch'), update_display())).props('unelevated dense no-ripple').classes('toggle-btn-sw')
                 
                 with ui.column().classes('w-full items-center mt-1'):
                     timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light tracking-normal')
