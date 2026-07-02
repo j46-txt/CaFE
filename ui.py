@@ -121,7 +121,16 @@ async def build_ui():
         .frappe-dark { color: #59514a !important; }
         .frappe-muted { color: #382d26 !important; }
         
-        /* RADICAL RECTANGULAR HOVER REMOVAL FOR ALL COMPONENT STATES (INCLUDING ACTIVE/POST-CLICK) */
+        /* TOTAL RIPPLE EXTERMINATION (Elimina o efeito de preenchimento ao clicar) */
+        .q-ripple, .q-ripple__inner, [class*="q-ripple"] {
+            display: none !important;
+            opacity: 0 !important;
+            visibility: hidden !important;
+            background: transparent !important;
+            background-color: transparent !important;
+        }
+        
+        /* RADICAL RECTANGULAR HOVER REMOVAL FOR ALL COMPONENT STATES */
         html body .q-focus-helper,
         html body .q-btn .q-focus-helper,
         html body .q-btn::before,
@@ -172,12 +181,23 @@ async def build_ui():
         html body .q-btn.timer-btn:hover .q-btn__content {
             color: #875d46 !important; /* Unified brown hover */
         }
-        html body .q-btn.timer-btn:focus .q-icon,
-        html body .q-btn.timer-btn:active .q-icon {
-            color: #4e3629 !important;
+        
+        /* HELP AND SETTINGS BUTTONS - RADICAL HOVER OVERRIDE */
+        html body .icon-panel-btn,
+        html body .icon-panel-btn:hover,
+        html body .icon-panel-btn:focus,
+        html body .icon-panel-btn:active {
+            background: transparent !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
         }
-        html body .q-btn.timer-btn:hover:focus .q-icon {
-            color: #875d46 !important;
+        html body .icon-panel-btn .q-icon {
+            color: #59514a !important;
+            transition: color 0.1s ease-in-out;
+        }
+        html body .icon-panel-btn:hover .q-icon {
+            color: #ebdcd0 !important;
         }
         
         .inline-mono-btn {
@@ -233,11 +253,6 @@ async def build_ui():
             border: 1px solid #16100d !important;
             opacity: 1 !important;
         }
-        html body .large-toggle .q-btn:not(.q-btn--active) .q-btn__content,
-        html body .large-toggle .q-btn.disabled:not(.q-btn--active) .q-btn__content {
-            color: #4a413a !important;
-            opacity: 1 !important;
-        }
         /* Rigid Active Locked State (including disabled) */
         html body .large-toggle .q-btn.q-btn--active,
         html body .large-toggle .q-btn.q-btn--active.disabled {
@@ -245,35 +260,6 @@ async def build_ui():
             background: #4e3629 !important;
             border: 1px solid #4e3629 !important;
             opacity: 1 !important;
-        }
-        html body .large-toggle .q-btn.q-btn--active .q-btn__content,
-        html body .large-toggle .q-btn.q-btn--active.disabled .q-btn__content {
-            color: #ebdcd0 !important;
-            opacity: 1 !important;
-        }
-        
-        /* FLAT ICON INTERACTIVE BUTTONS (Help and Settings) - RECTANGLE OVERLAY TERMINATED */
-        html body .q-btn.text-grey,
-        html body .q-btn.text-grey:hover, 
-        html body .q-btn.text-grey:focus, 
-        html body .q-btn.text-grey:active {
-            background-color: transparent !important;
-            background: transparent !important;
-            box-shadow: none !important;
-        }
-        html body .q-btn.text-grey .q-icon {
-            color: #59514a !important;
-            transition: color 0.1s ease-in-out;
-        }
-        html body .q-btn.text-grey:hover .q-icon {
-            color: #ebdcd0 !important;
-        }
-        html body .q-btn.text-grey:focus .q-icon,
-        html body .q-btn.text-grey:active .q-icon {
-            color: #59514a !important;
-        }
-        html body .q-btn.text-grey:hover:focus .q-icon {
-            color: #ebdcd0 !important;
         }
         
         /* DIALOG FORM CONFIGURATION CORES OVERRIDE */
@@ -348,6 +334,16 @@ async def build_ui():
         .text-neutral-600 { color: #382d26 !important; }
         .bg-neutral-950 { background-color: #000000 !important; }
         .border-neutral-950 { border-color: #16100d !important; }
+        
+        /* ANCHORED OVERRIDES FOR LATENCY LOCKS (Força as cores corretas nos botões do toggle independente do delay) */
+        html body .large-toggle .q-btn:not(.q-btn--active) * {
+            color: #4a413a !important;
+            opacity: 1 !important;
+        }
+        html body .large-toggle .q-btn.q-btn--active * {
+            color: #ebdcd0 !important;
+            opacity: 1 !important;
+        }
     </style>
     ''')
 
@@ -387,7 +383,7 @@ async def build_ui():
                         ui.button('Reset', on_click=perform_reset).classes('mono-btn text-xs border-red-900 text-red-500')
                 confirm_dialog.open()
                 
-            ui.button('Reset statistics', on_click=confirm_reset).props('flat dense').classes('text-red-500/70 hover:text-red-400 text-xs self-start mb-3').style('text-transform: none; padding-left: 0;')
+            ui.button('Reset statistics', on_click=confirm_reset).props('flat dense no-ripple').classes('text-red-500/70 hover:text-red-400 text-xs self-start mb-3').style('text-transform: none; padding-left: 0;')
 
             async def save_settings():
                 pomo_val = int(pomo_input.value) if pomo_input.value is not None else 25
@@ -459,8 +455,8 @@ async def build_ui():
                             weight_edit = ui.number(value=sub.weight, format='%.0f').classes('w-10').props('dense dark')
                             
                             with ui.row().classes('gap-1'):
-                                ui.button(icon='save', on_click=lambda e, sid=sub.id, n=name_edit, w=weight_edit: trigger_update(sid, n.value, w.value)).props('flat dense size=sm color=grey')
-                                ui.button(icon='delete', on_click=lambda e, sid=sub.id: trigger_delete(sid)).props('flat dense size=sm color=grey')
+                                ui.button(icon='save', on_click=lambda e, sid=sub.id, n=name_edit, w=weight_edit: trigger_update(sid, n.value, w.value)).props('flat dense size=sm color=grey no-ripple')
+                                ui.button(icon='delete', on_click=lambda e, sid=sub.id: trigger_delete(sid)).props('flat dense size=sm color=grey no-ripple')
                 subject_list_container.update()
 
             ui.button('Close Panel', on_click=dialog.close).classes('w-full mono-btn mt-1')
@@ -678,12 +674,12 @@ async def build_ui():
                     with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
                         ui.label("Today's suggestion:").classes('frappe-dark text-sm')
                         suggestion_val_label = ui.label('').classes('frappe-light uppercase text-sm')
-                        edit_suggestion_inline_btn = ui.button(icon='edit', on_click=open_suggestions_panel).props('flat dense size=xs color=grey').style('margin-top: -2px; padding: 0; width: 12px; min-width: 12px;')
+                        edit_suggestion_inline_btn = ui.button(icon='edit', on_click=open_suggestions_panel).props('flat dense size=xs color=grey no-ripple').style('margin-top: -2px; padding: 0; width: 12px; min-width: 12px;')
                         add_suggestion_inline_btn = ui.button('+ Define Suggestions', on_click=open_suggestions_panel).classes('inline-mono-btn')
                 
                 with ui.row().classes('gap-2 items-center'):
-                    ui.button(icon='help', on_click=open_help_panel).props('flat dense size=sm color=grey')
-                    ui.button(icon='settings', on_click=open_settings_panel).props('flat dense size=sm color=grey')
+                    ui.button(icon='help', on_click=open_help_panel).props('flat dense size=sm color=grey no-ripple').classes('icon-panel-btn')
+                    ui.button(icon='settings', on_click=open_settings_panel).props('flat dense size=sm color=grey no-ripple').classes('icon-panel-btn')
 
             with ui.column().classes('w-full gap-1.5 mt-2'):
                 with ui.row().classes('w-full justify-between items-baseline'):
@@ -729,9 +725,9 @@ async def build_ui():
                     timer_label = ui.label(focus_timer.display_time).classes('text-5xl frappe-light tracking-normal')
                     
                     with ui.row().classes('gap-1.5 h-10 items-center justify-center w-full'):
-                        start_pause_btn = ui.button(on_click=toggle_start_pause).classes('timer-btn').props('flat round size=md')
-                        reset_btn = ui.button(on_click=lambda: (focus_timer.reset(), update_display())).classes('timer-btn').props('flat round icon=refresh size=md')
-                        stop_btn = ui.button(on_click=lambda: (focus_timer.stop(), update_display())).classes('timer-btn').props('flat round icon=stop size=md')
+                        start_pause_btn = ui.button(on_click=toggle_start_pause).classes('timer-btn').props('flat round size=md no-ripple')
+                        reset_btn = ui.button(on_click=lambda: (focus_timer.reset(), update_display())).classes('timer-btn').props('flat round icon=refresh size=md no-ripple')
+                        stop_btn = ui.button(on_click=lambda: (focus_timer.stop(), update_display())).classes('timer-btn').props('flat round icon=stop size=md no-ripple')
 
                 with ui.row().classes('w-full items-center gap-1.5 mt-auto pt-2').style('border-top: 1px solid #141414;'):
                     ui.label("Today:").classes('text-xs uppercase tracking-wider frappe-dark')
