@@ -126,14 +126,14 @@ async def build_ui():
         }
         .mono-btn:hover {
             background-color: #120c09 !important;
-            color: #f2eae1 !important;
+            color: #ebdcd0 !important;
             border-color: #382d26 !important;
         }
         
         .inline-mono-btn {
             background-color: #6f4e37 !important;
             border: 1px solid #6f4e37 !important;
-            color: #f2eae1 !important;
+            color: #ebdcd0 !important;
             text-transform: uppercase !important;
             border-radius: 2px !important;
             box-shadow: none !important;
@@ -157,7 +157,7 @@ async def build_ui():
         .inline-mono-btn:hover {
             background-color: #543d2b !important;
             border-color: #543d2b !important;
-            color: #f2eae1 !important;
+            color: #ebdcd0 !important;
         }
         
         .blue-link {
@@ -168,18 +168,40 @@ async def build_ui():
             color: #7d5337 !important;
         }
         
+        /* SELETOR TOGGLE (Pomodoro / Stopwatch) */
         .large-toggle .q-btn {
             font-size: 13px !important;
             padding: 3px 10px !important;
             border-radius: 0px !important;
             border: 1px solid #16100d !important;
             background-color: #000000 !important;
-            color: #4a413a !important;
+            color: #4a413a !important; /* Desativado */
+            transition: none !important;
         }
         .large-toggle .q-btn--active {
-            color: #f2eae1 !important;
+            color: #ebdcd0 !important; /* Ativado */
             background-color: #6f4e37 !important;
             border-color: #6f4e37 !important;
+        }
+        /* Desativa o flash/ripple nativo e trava o estado estável de clique pressionado */
+        .large-toggle .q-btn .q-focus-helper {
+            display: none !important;
+        }
+        .large-toggle .q-btn:active, .large-toggle .q-btn--actionable:active {
+            background-color: #000000 !important;
+            color: #4a413a !important;
+        }
+        .large-toggle .q-btn--active:active {
+            background-color: #6f4e37 !important;
+            color: #ebdcd0 !important;
+        }
+        
+        /* BOTÕES DE ÍCONE PLANOS (Help e Settings) */
+        .q-btn.text-grey, .q-btn.text-grey .q-icon {
+            color: #59514a !important;
+        }
+        .q-btn.text-grey:hover, .q-btn.text-grey:hover .q-icon {
+            color: #ebdcd0 !important;
         }
         
         .q-field__native, .q-field__input {
@@ -187,7 +209,13 @@ async def build_ui():
             font-size: 15px !important;
         }
         .q-field--outlined .q-field__control { border: 1px solid #16100d !important; border-radius: 0px !important; }
-        .q-linear-progress { background: #120c09 !important; color: #b5a499 !important; }
+        
+        /* BARRA DE PROGRESSO: OCA COM CONTORNO MARROM */
+        .q-linear-progress { 
+            background: #000000 !important; 
+            color: #6f4e37 !important; 
+            border: 1px solid #6f4e37 !important;
+        }
         
         @keyframes gradient-flow-right {
             0% { background-position: 200% 50%; }
@@ -199,9 +227,15 @@ async def build_ui():
             animation: gradient-flow-right 3s linear infinite !important;
         }
 
-        .text-white, .text-neutral-300, .hover\:text-white:hover { color: #c4b3a5 !important; }
-        .text-neutral-400 { color: #b5a499 !important; }
-        .text-neutral-500 { color: #59514a !important; }
+        /* OVERRIDES DE HIERARQUIA UTILITÁRIA */
+        /* Grupo Principal: Valores, Números, Timer, Saudação e Títulos Principais dos Cards */
+        .text-white, .text-neutral-300, .uppercase.text-neutral-400, .uppercase.text-white, .hover\:text-white:hover { 
+            color: #ebdcd0 !important; 
+        }
+        /* Labels Secundárias Apagadas: Weekly Goal, Pace, Total Hours, Total Focus Days, etc. */
+        .text-neutral-500, .text-neutral-400:not(.uppercase) { 
+            color: #59514a !important; 
+        }
         .text-neutral-600 { color: #382d26 !important; }
         .bg-neutral-950 { background-color: #000000 !important; }
         .border-neutral-950 { border-color: #16100d !important; }
