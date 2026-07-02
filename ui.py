@@ -131,16 +131,22 @@ async def build_ui():
             border-color: #382d26 !important;
         }
         
-        /* BOTÕES DE CONTROLE DO TIMER (START, PAUSE, RESTART) */
+        /* BOTÕES DE CONTROLE DO TIMER (START, PAUSE, RESTART) - VISIBILIDADE DO ÍCONE FIXADA */
         html body .q-btn.mono-btn.q-btn--round {
             background-color: #4e3629 !important;
             border: 1px solid #4e3629 !important;
-            color: #ebdcd0 !important;
             box-shadow: none !important;
+        }
+        html body .q-btn.mono-btn.q-btn--round .q-icon,
+        html body .q-btn.mono-btn.q-btn--round .q-btn__content {
+            color: #ebdcd0 !important;
         }
         html body .q-btn.mono-btn.q-btn--round:hover {
             background-color: #6f4e37 !important;
             border-color: #6f4e37 !important;
+        }
+        html body .q-btn.mono-btn.q-btn--round:hover .q-icon,
+        html body .q-btn.mono-btn.q-btn--round:hover .q-btn__content {
             color: #ffffff !important;
         }
         
@@ -174,45 +180,63 @@ async def build_ui():
             color: #ffffff !important;
         }
         
+        /* LINKS DIRETOS NO PRETO (SHOW MORE) */
         .blue-link {
-            color: #9c6f52 !important;
+            color: #4e3629 !important;
             transition: color 0.1s ease-in-out;
         }
         .blue-link:hover {
-            color: #7d5337 !important;
+            color: #ebdcd0 !important;
         }
         
-        /* TRAVAMENTO RADICAL DO SELETOR POMODORO / STOPWATCH */
+        /* BLOQUEIO ABSOLUTO DOS BOTÕES POMODORO / STOPWATCH (SEM MUDANÇA DE COR NO CLIQUE) */
         html body .large-toggle .q-btn {
             font-size: 13px !important;
             padding: 3px 10px !important;
             border-radius: 0px !important;
             border: 1px solid #16100d !important;
             background-color: #000000 !important;
-            color: #4a413a !important; 
-            transition: none !important;
             box-shadow: none !important;
+            transition: none !important;
+        }
+        html body .large-toggle .q-btn .q-btn__content {
+            color: #4a413a !important; /* Texto do inativo */
         }
         html body .large-toggle .q-btn.q-btn--active {
-            color: #ebdcd0 !important; 
             background-color: #4e3629 !important;
             border-color: #4e3629 !important;
         }
+        html body .large-toggle .q-btn.q-btn--active .q-btn__content {
+            color: #ebdcd0 !important; /* Texto do ativo */
+        }
+        /* Desativa overlays visuais nativos */
         html body .large-toggle .q-btn .q-focus-helper, 
         html body .large-toggle .q-btn .q-ripple {
             display: none !important;
             opacity: 0 !important;
         }
+        /* Trava a cor do botão não selecionado durante hover, active e focus */
+        html body .large-toggle .q-btn:not(.q-btn--active):hover,
         html body .large-toggle .q-btn:not(.q-btn--active):active, 
-        html body .large-toggle .q-btn:not(.q-btn--active):focus,
-        html body .large-toggle .q-btn:not(.q-btn--active):hover {
+        html body .large-toggle .q-btn:not(.q-btn--active):focus {
             background-color: #000000 !important;
+            border-color: #16100d !important;
+        }
+        html body .large-toggle .q-btn:not(.q-btn--active):hover .q-btn__content,
+        html body .large-toggle .q-btn:not(.q-btn--active):active .q-btn__content,
+        html body .large-toggle .q-btn:not(.q-btn--active):focus .q-btn__content {
             color: #4a413a !important;
         }
+        /* Trava a cor do botão selecionado ativo durante hover, active e focus */
+        html body .large-toggle .q-btn.q-btn--active:hover,
         html body .large-toggle .q-btn.q-btn--active:active, 
-        html body .large-toggle .q-btn.q-btn--active:focus,
-        html body .large-toggle .q-btn.q-btn--active:hover {
+        html body .large-toggle .q-btn.q-btn--active:focus {
             background-color: #4e3629 !important;
+            border-color: #4e3629 !important;
+        }
+        html body .large-toggle .q-btn.q-btn--active:hover .q-btn__content,
+        html body .large-toggle .q-btn.q-btn--active:active .q-btn__content,
+        html body .large-toggle .q-btn.q-btn--active:focus .q-btn__content {
             color: #ebdcd0 !important;
         }
         
@@ -230,7 +254,7 @@ async def build_ui():
         }
         .q-field--outlined .q-field__control { border: 1px solid #16100d !important; border-radius: 0px !important; }
         
-        /* BARRA DE PROGRESSO: CONTORNO EM MARROM ESCURO */
+        /* BARRA DE PROGRESSO: OCA COM CONTORNO EM MARROM ESCURO */
         html body .q-linear-progress { 
             background-color: #000000 !important; 
             background: #000000 !important;
@@ -254,7 +278,8 @@ async def build_ui():
             animation: gradient-flow-right 3s linear infinite !important;
         }
 
-        /* ANULAÇÃO ABSOLUTA DAS CORES BRANCAS E CINZAS DO FRAMEWORK */
+        /* ANULAÇÃO IRREVOGÁVEL DOS BRANCOS E CINZAS DO FRAMEWORK */
+        /* Alvo Principal: Números, Valores, Timer, Sugestão, Títulos de Modais e Saudação */
         html body .text-white, 
         html body [class*="text-white"], 
         html body .text-neutral-300, 
@@ -262,10 +287,11 @@ async def build_ui():
         html body .text-5xl { 
             color: #ebdcd0 !important; 
         }
+        /* Alvo Secundário: Labels Estáticas Apagadas (Pace, Weekly Goal, Statistics, Timer, etc.) */
         html body .text-neutral-500, 
         html body [class*="text-neutral-500"],
-        html body .text-neutral-400:not(.uppercase),
-        html body [class*="text-neutral-400"]:not(.uppercase) { 
+        html body .text-neutral-400,
+        html body [class*="text-neutral-400"] { 
             color: #59514a !important; 
         }
         .text-neutral-600 { color: #382d26 !important; }
