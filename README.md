@@ -28,7 +28,7 @@ Before starting, make sure you have **Python** installed on your system. If you 
 ### Step 1: Download and Prepare the Project Files
 * Download this repository as a ZIP file and extract all its contents into a folder on your computer, or clone it using Git:
 ```bash
-git clone [https://github.com/j46-txt/CaFE.git](https://github.com/j46-txt/CaFE.git)
+git clone https://github.com/j46-txt/CaFE.git
 ```
 * Open your terminal (Mac/Linux) or Command Prompt (Windows).
 * Navigate to the folder where you downloaded this project's files (for example: `cd CaFE`).
