@@ -23,15 +23,14 @@
 You can run and test this application locally on your own computer by following these steps:
 
 ### Prerequisites
-Before starting, make sure you have **Python** installed on your system. If you do not have it, you can download and install it from the official website (python.org).
+**Python 3.8 or higher** installed.
 
 ### Step 1: Download and Prepare the Project Files
 * Download this repository as a ZIP file and extract all its contents into a folder on your computer, or clone it using Git:
 ```bash
 git clone https://github.com/j46-txt/CaFE.git
 ```
-* Open your terminal (Mac/Linux) or Command Prompt (Windows).
-* Navigate to the folder with this project's files (e.g., `cd CaFE`).
+* Open your terminal (Mac/Linux) or Command Prompt (Windows) and navigate to the folder with this project's files.
 
 ### Step 2: Install the Required Packages:
 ```bash
