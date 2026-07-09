@@ -38,14 +38,12 @@ git clone https://github.com/j46-txt/CaFE.git
 pip install -r requirements.txt
 ```
 
-### Step 3: Lauch the Application
-Start the application tracking server by running this command:
+### Step 3: Lauch the Application:
 ```bash
 python main.py
 ```
 
-### Step 4: Open in Your Web Browser
-Once the server is running, open any browser  and visit the local address:
+### Step 4: Open in Your Web Browser:
 ```bash
 http://localhost:8080
 ```
