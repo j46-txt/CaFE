@@ -31,7 +31,7 @@ Before starting, make sure you have **Python** installed on your system. If you 
 git clone https://github.com/j46-txt/CaFE.git
 ```
 * Open your terminal (Mac/Linux) or Command Prompt (Windows).
-* Navigate to the folder where you downloaded this project's files (for example: `cd CaFE`).
+* Navigate to the folder with this project's files (e.g., `cd CaFE`).
 
 ### Step 2: Install the Required Packages:
 ```bash
