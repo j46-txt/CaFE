@@ -23,7 +23,7 @@
 You can run and test this application locally on your own computer by following these steps:
 
 ### Prerequisites
-**Python 3.8 or higher** installed.
+* **Python 3.8 or higher** installed.
 
 ### Step 1: Download and Prepare the Project Files
 * Download this repository as a ZIP file and extract all its contents into a folder on your computer, or clone it using Git:
