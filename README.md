@@ -33,8 +33,7 @@ git clone https://github.com/j46-txt/CaFE.git
 * Open your terminal (Mac/Linux) or Command Prompt (Windows).
 * Navigate to the folder where you downloaded this project's files (for example: `cd CaFE`).
 
-### Step 2: Install the Required Packages
-Copy and paste the following command into your terminal window and press Enter to automatically download the visual interface components:
+### Step 2: Install the Required Packages:
 ```bash
 pip install -r requirements.txt
 ```
@@ -46,8 +45,7 @@ python main.py
 ```
 
 ### Step 4: Open in Your Web Browser
-Once the server is running, open any web browser (Chrome, Edge, Safari, or Firefox) and visit the following local address:
+Once the server is running, open any browser  and visit the local address:
 ```bash
 http://localhost:8080
 ```
-The interface will load instantly, running entirely on your local machine using an automatic internal database.
