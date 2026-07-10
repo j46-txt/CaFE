@@ -12,7 +12,7 @@
 
 ## Technology
 
-* Python
+* Python 3.8+
 * NiceGUI
 * SQLite
 * Psycopg2
