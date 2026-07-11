@@ -1,6 +1,6 @@
 # CaFE ☕︎
 
-**CaFE** (**C**onsistency **a**nd **F**ocus **E**ngine) is a minimalist simple productivity tracker and timer designed for long-term consistency.
+**CaFE** (**C**onsistency **a**nd **F**ocus **E**ngine) is a simple minimalist productivity tracker and timer designed for long-term consistency.
 
 The built-in timer records your activity, logging the date, weekday, and focus duration to help monitor your habits.
 
