@@ -1,14 +1,12 @@
 # CaFE ☕︎
 
-**CaFE** (**C**onsistency **a**nd **F**ocus **E**ngine) is a minimalist productivity tracker and timer built for long-term consistency. Using the built-in timer automatically records your activity, providing the data needed to identify patterns, analyze trends, and reinforce motivation over time.
+**CaFE** (**C**onsistency **a**nd **F**ocus **E**ngine) is a minimalist productivity tracker and timer built for long-term consistency.
 
-To enhance focus, it provides a frictionless experience by algorithmically rotating user-defined daily targets, eliminating the need to plan or choose. This makes it ideal for repeatedly studying or working on a predefined set of subjects.
+The built-in timer records your activity, logging the date, weekday, focus duration, and activity to help monitor your habits.
 
-It logs the date, weekday, focus duration, and activity using precise telemetry to help monitor your habits.
+Once configured, it algorithmically rotates user-defined daily suggestions, eliminating the need to plan or choose, which is ideal for repeatedly studying or working on a predefined set of subjects.
 
-Long-term consistency is supported by tracking a weekly goal, calculating a rolling pace metric (hours/week), and displaying your total focus time and days invested.
-
-Behind the scenes, the system uses automated, non-blocking backend mechanics, monotonic system clocks for precise tracking, an in-memory configuration cache to avoid disk read contention, and a serialized background queue worker to transparently mirror data to the cloud.
+Long-term consistency is supported by tracking a weekly goal alongside a rolling "pace" metric (hours/week), and total time invested.
 
 ## Features
 
@@ -18,7 +16,7 @@ Behind the scenes, the system uses automated, non-blocking backend mechanics, mo
 * Statistics dashboard
 * Visual progress bar for weekly goal
 * CSV data export
-* Optional PostgreSQL cloud sync (see '.env.example')
+* Optional PostgreSQL cloud sync (see `.env.example`)
 
 ## Technology
 
@@ -27,6 +25,8 @@ Behind the scenes, the system uses automated, non-blocking backend mechanics, mo
 * SQLite
 * Psycopg2
 * Tailwind CSS
+
+---
 
 ## How to Run and Test
 
