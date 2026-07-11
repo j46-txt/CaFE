@@ -22,7 +22,7 @@ Motivation and consistency are supported by tracking a weekly goal alongside a r
 * Python 3.8+
 * NiceGUI
 * SQLite
-* Psycopg2
+* PostgreSQL (via Psycopg2)
 * Tailwind CSS
 
 ---
