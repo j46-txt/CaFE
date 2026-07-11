@@ -13,7 +13,6 @@ Motivation and consistency are supported by tracking a weekly goal alongside a r
 * Custom pomodoro timer with skippable breaks
 * Stopwatch timer mode
 * Suggestion management with custom probability weights
-* Statistics dashboard
 * Visual progress bar for weekly goal
 * CSV data export
 * Optional PostgreSQL cloud sync (see `.env.example`)
