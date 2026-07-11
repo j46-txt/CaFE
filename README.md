@@ -2,9 +2,9 @@
 
 **CaFE** (**C**onsistency **a**nd **F**ocus **E**ngine) is a minimalist productivity tracker and timer built for long-term consistency.
 
-The built-in timer records your activity, logging the date, weekday, focus duration, and activity to help monitor your habits.
+The built-in timer records your activity, logging the date, weekday, and focus duration to help monitor your habits.
 
-Once configured, it algorithmically rotates user-defined daily suggestions, eliminating the need to plan or choose, which is ideal for repeatedly studying or working on a predefined set of subjects.
+Once configured, it algorithmically rotates user-defined daily suggestions (which are also logged), eliminating the need to plan or choose, which is ideal for repeatedly studying or working on a predefined set of subjects.
 
 Motivation and consistency are supported by tracking a weekly goal alongside a rolling "pace" metric (hours/week), and total time invested.
 
