@@ -6,7 +6,7 @@ Using the built-in timer automatically records your activity, logging the date, 
 
 Once configured, it algorithmically rotates user-defined daily suggestions (which are also logged), eliminating the need to plan or choose, making it ideal for repeatedly studying or working on a predefined set of subjects.
 
-Motivation and consistency are supported by tracking a weekly goal alongside a rolling "pace" metric (hours/week), and total time invested.
+Motivation and consistency are supported by tracking a weekly goal alongside a dashboard displaying a rolling "pace" metric (hours/week), total focused time, and days invested.
 
 ## Features
 
