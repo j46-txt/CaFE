@@ -2,13 +2,23 @@
 
 **CaFE** (**C**onsistency **a**nd **F**ocus **E**ngine) is a minimalist productivity tracker and timer built for long-term consistency. Using the built-in timer automatically records your activity, providing the data needed to identify patterns, analyze trends, and reinforce motivation over time.
 
+To enhance focus, it provides a frictionless experience by algorithmically rotating user-defined daily targets, eliminating the need to plan or choose. This makes it ideal for repeatedly studying or working on a predefined set of subjects.
+
+It logs the date, weekday, focus duration, and activity using precise telemetry to help monitor your habits.
+
+Long-term consistency is supported by tracking a weekly goal, calculating a rolling pace metric (hours/week), and displaying your total focus time and days invested.
+
+Behind the scenes, the system uses automated, non-blocking backend mechanics, monotonic system clocks for precise tracking, an in-memory configuration cache to avoid disk read contention, and a serialized background queue worker to transparently mirror data to the cloud.
+
 ## Features
 
-* Pomodoro or stopwatch timer modes
-* Weighted daily activity suggestion engine
+* Custom pomodoro timer with skippable breaks
+* Stopwatch timer mode
+* Suggestion management with custom probability weights
 * Statistics dashboard
-* Weekly goal and progress tracking
+* Visual progress bar for weekly goal
 * CSV data export
+* Optional PostgreSQL cloud sync (see '.env.example')
 
 ## Technology
 
