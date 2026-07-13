@@ -25,6 +25,12 @@ Motivation and consistency are supported by tracking a weekly goal alongside a d
 * PostgreSQL (via Psycopg2)
 * Tailwind CSS
 
+## About
+
+This project is one of the personal tools I built for myself. It’s wasn't meant to be general-purpose, just something that might also be useful to someone else.
+
+Feel free to fork it or submit a pull request!
+
 ---
 
 ## How to Run and Test
