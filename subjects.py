@@ -99,60 +99,61 @@ def get_active_subject() -> Optional[Subject]:
 
 def rotate_subject() -> None:
     """Performs a proportional ticket-based rotation with interleaved dynamic cooldowns."""
-    with database.get_db() as db:
-        all_subs = db.execute('SELECT * FROM subjects WHERE is_deleted = 0').fetchall()
-        if not all_subs:
-            return
-        if len(all_subs) == 1:
-            db.execute('UPDATE subjects SET is_active = 1 WHERE id = ?', (all_subs[0]['id'],))
-            return
-
-        # 1. Cycle Refill Check: If all tickets are exhausted, repopulate the board
-        total_tickets = sum(s['tickets_remaining'] for s in all_subs)
-        if total_tickets <= 0:
-            for s in all_subs:
-                db.execute('UPDATE subjects SET tickets_remaining = weight WHERE id = ?', (s['id'],))
+    with rotation_lock:
+        with database.get_db() as db:
             all_subs = db.execute('SELECT * FROM subjects WHERE is_deleted = 0').fetchall()
+            if not all_subs:
+                return
+            if len(all_subs) == 1:
+                db.execute('UPDATE subjects SET is_active = 1 WHERE id = ?', (all_subs[0]['id'],))
+                return
 
-        # 2. Ascertain the current chronological turn mathematically
-        max_turn_row = db.execute('SELECT MAX(last_picked_turn) as max_t FROM subjects').fetchone()
-        current_turn = max_turn_row['max_t'] if max_turn_row and max_turn_row['max_t'] else 0
+            # 1. Cycle Refill Check: If all tickets are exhausted, repopulate the board
+            total_tickets = sum(s['tickets_remaining'] for s in all_subs)
+            if total_tickets <= 0:
+                for s in all_subs:
+                    db.execute('UPDATE subjects SET tickets_remaining = weight WHERE id = ?', (s['id'],))
+                all_subs = db.execute('SELECT * FROM subjects WHERE is_deleted = 0').fetchall()
 
-        # 3. Dynamic Cooldown Logic (scales implicitly with user list size)
-        active_subs_count = len(all_subs)
-        cooldown = max(0, active_subs_count // 2)
+            # 2. Ascertain the current chronological turn mathematically
+            max_turn_row = db.execute('SELECT MAX(last_picked_turn) as max_t FROM subjects').fetchone()
+            current_turn = max_turn_row['max_t'] if max_turn_row and max_turn_row['max_t'] else 0
 
-        candidates = []
-        while cooldown >= 0:
-            candidates = [
-                s for s in all_subs 
-                if s['tickets_remaining'] > 0 and 
-                   (current_turn - s['last_picked_turn'] >= cooldown or s['last_picked_turn'] == 0)
-            ]
-            # Break if we have valid interleaved candidates, otherwise progressively drop the threshold
-            if candidates:
-                break
-            cooldown -= 1
+            # 3. Dynamic Cooldown Logic (scales implicitly with user list size)
+            active_subs_count = len(all_subs)
+            cooldown = max(0, active_subs_count // 2)
 
-        # Absolute mathematical safety fallback
-        if not candidates:
-            candidates = [s for s in all_subs if s['tickets_remaining'] > 0]
-        if not candidates:
-            candidates = all_subs
+            candidates = []
+            while cooldown >= 0:
+                candidates = [
+                    s for s in all_subs 
+                    if s['tickets_remaining'] > 0 and 
+                       (current_turn - s['last_picked_turn'] >= cooldown or s['last_picked_turn'] == 0)
+                ]
+                # Break if we have valid interleaved candidates, otherwise progressively drop the threshold
+                if candidates:
+                    break
+                cooldown -= 1
 
-        # 4. Draw a weighted ticket from the refined candidate pool
-        weights = [max(1, s['tickets_remaining']) for s in candidates]
-        chosen = random.choices(candidates, weights=weights, k=1)[0]
+            # Absolute mathematical safety fallback
+            if not candidates:
+                candidates = [s for s in all_subs if s['tickets_remaining'] > 0]
+            if not candidates:
+                candidates = all_subs
 
-        # 5. Commit sequence state
-        db.execute('UPDATE subjects SET is_active = 0')
-        db.execute('''
-            UPDATE subjects 
-            SET is_active = 1, 
-                tickets_remaining = MAX(0, tickets_remaining - 1), 
-                last_picked_turn = ? 
-            WHERE id = ?
-        ''', (current_turn + 1, chosen['id']))
+            # 4. Draw a weighted ticket from the refined candidate pool
+            weights = [max(1, s['tickets_remaining']) for s in candidates]
+            chosen = random.choices(candidates, weights=weights, k=1)[0]
+
+            # 5. Commit sequence state
+            db.execute('UPDATE subjects SET is_active = 0')
+            db.execute('''
+                UPDATE subjects 
+                SET is_active = 1, 
+                    tickets_remaining = MAX(0, tickets_remaining - 1), 
+                    last_picked_turn = ? 
+                WHERE id = ?
+            ''', (current_turn + 1, chosen['id']))
 
 def ensure_daily_rotation() -> None:
     """Rotates suggestion only when a new day arrives and the user opens the application."""
