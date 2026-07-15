@@ -13,7 +13,7 @@ Motivation and consistency are supported by tracking a weekly goal alongside a d
 * Custom pomodoro timer with skippable breaks
 * Stopwatch timer mode
 * Suggestion management with custom probability weights
-* Two suggestion rotation modes (daily automatic or manual session-based)
+* Two suggestion-rotation modes (daily automatic and manual session-based)
 * Visual progress bar for weekly goal
 * CSV data export
 * Optional PostgreSQL cloud sync (see `.env.example`)
