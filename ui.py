@@ -1018,9 +1018,14 @@ async def build_ui():
                 with ui.column().classes('gap-1'):
                     greeting_label = ui.label('').classes('frappe-light')
                     
-                    with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
-                        # Initialized smoothly using actual localized cache on first render
-                        suggestion_title_label = ui.label(t('main_suggestion_today')).classes('frappe-dark text-sm')
+                   with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
+                        # Fixed: Now respects the auto-rotate cache on initial page load
+                        with _CACHE_LOCK:
+                            init_auto_rotate = cached_auto_rotate
+                        
+                        init_label = t('main_suggestion_today') if init_auto_rotate else t('main_suggestion_current')
+                        suggestion_title_label = ui.label(init_label).classes('frappe-dark text-sm')
+                        
                         suggestion_val_label = ui.label('').classes('frappe-light uppercase text-sm')
                         
                         rotate_suggestion_inline_btn = ui.button(icon='autorenew', on_click=manual_rotate).props('flat dense size=sm no-ripple').classes('rotate-main-btn')
