@@ -14,6 +14,7 @@ import database
 cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0}
 cached_active_subject = None
 cached_weekly_goal_hours = 10
+cached_auto_rotate = True  # Added: Track dynamic rotation mode state
 active_clients = set()
 
 # Thread-safety lock to prevent ASGI render loop desynchronization
@@ -21,16 +22,18 @@ _CACHE_LOCK = threading.Lock()
 
 def refresh_global_cache():
     """Refreshes all memory caches at once to prevent main thread disk blocking loops."""
-    global cached_stats, cached_active_subject, cached_weekly_goal_hours
+    global cached_stats, cached_active_subject, cached_weekly_goal_hours, cached_auto_rotate
     
     new_stats = statistics.get_stats()
     new_subject = subjects.get_active_subject()
     new_hours = settings.get_weekly_goal_hours()
+    new_auto_rotate = settings.get_auto_rotate()  # Added: Hydrate rotation setting
     
     with _CACHE_LOCK:
         cached_stats = new_stats
         cached_active_subject = new_subject
         cached_weekly_goal_hours = new_hours
+        cached_auto_rotate = new_auto_rotate  # Added: Commit to cache
 
 def global_on_session_complete(duration_seconds: int, mode: str):
     with _CACHE_LOCK:
@@ -340,7 +343,7 @@ async def build_ui():
             background: linear-gradient(90deg, #120c09, #6f4e37, #120c09) !important;
             background-size: 200% 200% !important;
             animation: gradient-flow-right 3s linear infinite !important;
-        }
+            }
         
         /* SKIP BREAK LINK SHORTCUT BUTTON */
         .skip-btn-custom {
@@ -423,10 +426,18 @@ async def build_ui():
                 current_pomo = settings.get_pomodoro_minutes()
                 current_break = settings.get_break_minutes()
                 current_goal = cached_weekly_goal_hours
+                current_auto_rotate = cached_auto_rotate
             
             pomo_input = ui.number('Focus Period (min)', value=current_pomo, format='%.0f').classes('w-full mb-2')
             break_input = ui.number('Break Period (min)', value=current_break, format='%.0f').classes('w-full mb-2')
-            goal_input = ui.number('Weekly Target (hours)', value=current_goal, format='%.0f').classes('w-full mb-4')
+            goal_input = ui.number('Weekly Target (hours)', value=current_goal, format='%.0f').classes('w-full mb-2')
+            
+            # Dynamic Dropdown Selector to switch between rotation models
+            rotation_mode_input = ui.select(
+                options={True: 'Daily Automatic', False: 'Manual Session-Based'},
+                value=current_auto_rotate,
+                label='Rotation Mode'
+            ).classes('w-full mb-4')
             
             def confirm_reset():
                 with ui.dialog().props('transition-show=none transition-hide=none') as confirm_dialog, ui.card().classes('w-72 rounded-none p-4 mono-card'):
@@ -453,11 +464,13 @@ async def build_ui():
                 pomo_val = int(pomo_input.value) if pomo_input.value is not None else 25
                 break_val = int(break_input.value) if break_input.value is not None else 5
                 goal_val = int(goal_input.value) if goal_input.value is not None else 10
+                auto_rotate_val = bool(rotation_mode_input.value)
 
                 def b_save():
                     settings.set_setting('pomodoro_minutes', pomo_val)
                     settings.set_setting('break_minutes', break_val)
                     settings.set_setting('weekly_goal_hours', goal_val)
+                    settings.set_auto_rotate(auto_rotate_val)
                     focus_timer.sync_durations()
                     refresh_global_cache()
                 await asyncio.get_running_loop().run_in_executor(None, b_save)
@@ -553,7 +566,7 @@ async def build_ui():
         dialog.open()
 
     async def open_history_panel():
-        # [FIX] Render dialog immediately with loading spinner to prevent UI freeze
+        # Render dialog immediately with loading spinner to prevent UI freeze
         with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[480px] rounded-none p-4 mono-card'):
             with ui.row().classes('w-full justify-between items-center mb-3 pb-1 mono-divider'):
                 ui.label('Focus Sessions Log').classes('text-xs frappe-light uppercase tracking-wider')
@@ -639,6 +652,14 @@ async def build_ui():
         csv_data = await loop.run_in_executor(None, statistics.export_history_csv)
         ui.download(csv_data, 'focus_history.csv')
 
+    async def manual_rotate():
+        """Asynchronously requests a thread-safe weighted subject rotation and updates the view."""
+        def b_rotate():
+            subjects.rotate_subject()
+            refresh_global_cache()
+        await asyncio.get_running_loop().run_in_executor(None, b_rotate)
+        update_display()
+
     def update_display():
         status = focus_timer.state.status
 
@@ -647,6 +668,7 @@ async def build_ui():
             current_stats = cached_stats.copy()
             current_subject = cached_active_subject
             current_goal = cached_weekly_goal_hours
+            current_auto_rotate = cached_auto_rotate
 
         if status == 'idle':
             start_pause_btn.props("icon=play_arrow")
@@ -721,14 +743,22 @@ async def build_ui():
         progress_val = min(1.0, live_week / goal_seconds) if goal_seconds > 0 else 0
         week_progress.value = progress_val
         
+        # Dynamic label adaptation based on selected rotation mode
+        if current_auto_rotate:
+            suggestion_title_label.text = "Today's suggestion:"
+        else:
+            suggestion_title_label.text = "Current suggestion:"
+
         if current_subject:
             suggestion_val_label.set_visibility(True)
             edit_suggestion_inline_btn.set_visibility(True)
+            rotate_suggestion_inline_btn.set_visibility(True)
             add_suggestion_inline_btn.set_visibility(False)
             suggestion_val_label.text = f"{current_subject.name}"
         else:
             suggestion_val_label.set_visibility(False)
             edit_suggestion_inline_btn.set_visibility(False)
+            rotate_suggestion_inline_btn.set_visibility(False)
             add_suggestion_inline_btn.set_visibility(True)
 
         timer_label.update()
@@ -736,8 +766,10 @@ async def build_ui():
         total_label.update()
         today_label.update()
         focus_days_label.update()
+        suggestion_title_label.update()
         suggestion_val_label.update()
         edit_suggestion_inline_btn.update()
+        rotate_suggestion_inline_btn.update()
         add_suggestion_inline_btn.update()
         start_pause_btn.update()
         reset_btn.update()
@@ -775,8 +807,11 @@ async def build_ui():
                     greeting_label = ui.label('').classes('frappe-light')
                     
                     with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
-                        ui.label("Today's suggestion:").classes('frappe-dark text-sm')
+                        suggestion_title_label = ui.label("Today's suggestion:").classes('frappe-dark text-sm')
                         suggestion_val_label = ui.label('').classes('frappe-light uppercase text-sm')
+                        
+                        # Dynamic control shortcuts next to active suggestion
+                        rotate_suggestion_inline_btn = ui.button(icon='autorenew', on_click=manual_rotate).props('flat dense size=xs no-ripple').classes('edit-pencil-btn')
                         edit_suggestion_inline_btn = ui.button(icon='edit', on_click=open_suggestions_panel).props('flat dense size=xs no-ripple').classes('edit-pencil-btn')
                         add_suggestion_inline_btn = ui.button('+ Define Suggestions', on_click=open_suggestions_panel).classes('inline-mono-btn')
                 
