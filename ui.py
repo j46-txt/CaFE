@@ -254,6 +254,30 @@ async def build_ui():
         html body .edit-pencil-btn:hover .q-icon {
             color: #875d46 !important;
         }
+
+        /* INLINE SUGGESTION ROTATE BUTTON (PROMINENT DESIGN WITH HOVER SPIN) */
+        html body .rotate-main-btn,
+        html body .rotate-main-btn:hover,
+        html body .rotate-main-btn:focus,
+        html body .rotate-main-btn:active {
+            background: transparent !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+            border: none !important;
+            align-self: center !important;
+            padding: 0 !important;
+            margin-left: 6px !important;
+            margin-right: 2px !important;
+        }
+        html body .rotate-main-btn .q-icon {
+            color: #ebdcd0 !important;
+            font-size: 16px !important;
+            transition: transform 0.3s ease-in-out, color 0.1s ease-in-out;
+        }
+        html body .rotate-main-btn:hover .q-icon {
+            color: #875d46 !important;
+            transform: rotate(180deg);
+        }
         
         /* DEFINE SUGGESTIONS BUTTON */
         .inline-mono-btn {
@@ -507,8 +531,8 @@ async def build_ui():
                     subjects.update_subject(s_id, name_val, int(weight_val) if weight_val else 1)
                     refresh_global_cache()
                 await asyncio.get_running_loop().run_in_executor(None, b_update)
-                await rebuild_management_view()
-                update_display()
+                # Keep active view dynamic without force focus-steals
+                refresh_global_cache()
 
             async def trigger_delete(s_id):
                 def b_delete():
@@ -527,13 +551,29 @@ async def build_ui():
                         ui.label('[No items defined]').classes('text-xs frappe-muted italic')
                     
                     for sub in all_items:
-                        with ui.row().classes('w-full items-center justify-between gap-1 p-1 bg-neutral-950 mono-divider'):
-                            name_edit = ui.input(value=sub.name).classes('w-28').props('dense dark')
-                            weight_edit = ui.number(value=sub.weight, format='%.0f').classes('w-10').props('dense dark')
+                        with ui.row().classes('w-full items-center justify-between gap-2 p-1 bg-neutral-950 mono-divider'):
+                            # Occupy full width dynamically with flex-grow
+                            name_edit = ui.input(value=sub.name).classes('flex-grow').props('dense dark')
+                            weight_edit = ui.number(value=sub.weight, format='%.0f').classes('w-12').props('dense dark')
                             
-                            with ui.row().classes('gap-1'):
-                                ui.button(icon='save', on_click=lambda e, sid=sub.id, n=name_edit, w=weight_edit: trigger_update(sid, n.value, w.value)).props('flat dense size=sm color=grey no-ripple')
-                                ui.button(icon='delete', on_click=lambda e, sid=sub.id: trigger_delete(sid)).props('flat dense size=sm color=grey no-ripple')
+                            # Optimized automatic saving routine using closed closures
+                            def make_save_handler(sid, n, w, old_n, old_w):
+                                async def handler():
+                                    new_name = n.value
+                                    new_weight = int(w.value) if w.value else 1
+                                    if new_name != old_n or new_weight != old_w:
+                                        await trigger_update(sid, new_name, new_weight)
+                                return handler
+                            
+                            save_handler = make_save_handler(sub.id, name_edit, weight_edit, sub.name, sub.weight)
+                            
+                            # Dynamic triggers to auto-save on blurs and enter key strokes
+                            name_edit.on('blur', save_handler)
+                            name_edit.on('keydown.enter', save_handler)
+                            weight_edit.on('blur', save_handler)
+                            weight_edit.on('keydown.enter', save_handler)
+                            
+                            ui.button(icon='delete', on_click=lambda e, sid=sub.id: trigger_delete(sid)).props('flat dense size=sm color=grey no-ripple')
                 subject_list_container.update()
 
             ui.button('Close Panel', on_click=dialog.close).classes('w-full mono-btn mt-1')
@@ -810,8 +850,8 @@ async def build_ui():
                         suggestion_title_label = ui.label("Today's suggestion:").classes('frappe-dark text-sm')
                         suggestion_val_label = ui.label('').classes('frappe-light uppercase text-sm')
                         
-                        # Dynamic control shortcuts next to active suggestion
-                        rotate_suggestion_inline_btn = ui.button(icon='autorenew', on_click=manual_rotate).props('flat dense size=xs no-ripple').classes('edit-pencil-btn')
+                        # Dynamic control shortcuts next to active suggestion (optimized size and design)
+                        rotate_suggestion_inline_btn = ui.button(icon='autorenew', on_click=manual_rotate).props('flat dense size=sm no-ripple').classes('rotate-main-btn')
                         edit_suggestion_inline_btn = ui.button(icon='edit', on_click=open_suggestions_panel).props('flat dense size=xs no-ripple').classes('edit-pencil-btn')
                         add_suggestion_inline_btn = ui.button('+ Define Suggestions', on_click=open_suggestions_panel).classes('inline-mono-btn')
                 
