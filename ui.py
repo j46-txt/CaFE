@@ -553,6 +553,20 @@ async def build_ui():
         dialog.open()
 
     async def open_history_panel():
+        # [FIX] Render dialog immediately with loading spinner to prevent UI freeze
+        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[480px] rounded-none p-4 mono-card'):
+            with ui.row().classes('w-full justify-between items-center mb-3 pb-1 mono-divider'):
+                ui.label('Focus Sessions Log').classes('text-xs frappe-light uppercase tracking-wider')
+                ui.button('Export CSV', on_click=download_csv_log).classes('mono-btn').style('font-size: 10px !important; padding: 2px 8px !important; height: auto; min-height: 0;')
+            
+            content_container = ui.column().classes('w-full gap-0')
+            with content_container:
+                ui.spinner('dots', size='md', color='#59514a').classes('self-center mt-4 mb-4')
+
+            ui.button('Close Log', on_click=dialog.close).classes('w-full mono-btn text-xs mt-2')
+
+        dialog.open()
+
         def fetch_history_data():
             with database.get_db() as db:
                 summary_rows = db.execute('''
@@ -574,13 +588,10 @@ async def build_ui():
 
         summary_rows, rows = await asyncio.get_running_loop().run_in_executor(None, fetch_history_data)
 
-        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[480px] rounded-none p-4 mono-card'):
-            with ui.row().classes('w-full justify-between items-center mb-3 pb-1 mono-divider'):
-                ui.label('Focus Sessions Log').classes('text-xs frappe-light uppercase tracking-wider')
-                ui.button('Export CSV', on_click=download_csv_log).classes('mono-btn').style('font-size: 10px !important; padding: 2px 8px !important; height: auto; min-height: 0;')
-            
+        content_container.clear()
+        with content_container:
             if summary_rows:
-                ui.label('Weekly Activity Blueprint:').classes('text-[11px] frappe-dark uppercase mb-1')
+                ui.label('Weekly Activity Blueprint:').classes('text-[11px] frappe-dark uppercase mb-1 mt-2')
                 with ui.column().classes('w-full gap-0.5 mb-4 p-2 bg-neutral-950 text-[11px] mono-card'):
                     for s_row in reversed(summary_rows):
                         hours = s_row['total_sec'] / 3600
@@ -612,9 +623,8 @@ async def build_ui():
                             ui.label(f"{row['start_date']} ({day_name})").classes('w-36 frappe-dark')
                             ui.label(sub_name).classes('w-24 truncate frappe-light')
                             ui.label(duration_str).classes('w-16 text-right frappe-light')
-                            
-            ui.button('Close Log', on_click=dialog.close).classes('w-full mono-btn text-xs')
-        dialog.open()
+
+        content_container.update()
 
     def toggle_start_pause():
         status = focus_timer.state.status
