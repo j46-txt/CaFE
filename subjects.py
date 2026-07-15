@@ -20,7 +20,7 @@ class Subject:
     last_picked_turn: int = 0
 
 # Explicit serialization primitive to secure timezone evaluations across asynchronous user request sessions
-rotation_lock = threading.Lock()
+rotation_lock = threading.RLock()
 
 def seed_default_subjects() -> None:
     """Explicitly empty to prevent any deletion queries from wiping user data during runtime restarts."""
