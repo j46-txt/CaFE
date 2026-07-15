@@ -208,12 +208,17 @@ def init_db():
             )
         ''')
         
+        # SCHEMA MIGRATIONS
         cursor = db.execute("PRAGMA table_info(subjects)")
         columns = [row['name'] for row in cursor.fetchall()]
         if 'weight' not in columns:
             db.execute("ALTER TABLE subjects ADD COLUMN weight INTEGER NOT NULL DEFAULT 1")
         if 'is_deleted' not in columns:
             db.execute("ALTER TABLE subjects ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0")
+        if 'tickets_remaining' not in columns:
+            db.execute("ALTER TABLE subjects ADD COLUMN tickets_remaining INTEGER NOT NULL DEFAULT 0")
+        if 'last_picked_turn' not in columns:
+            db.execute("ALTER TABLE subjects ADD COLUMN last_picked_turn INTEGER NOT NULL DEFAULT 0")
             
         db.execute('''
             CREATE TABLE IF NOT EXISTS focus_sessions (
