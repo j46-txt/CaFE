@@ -3,6 +3,7 @@
 import asyncio
 import datetime
 import threading
+import concurrent.futures
 from nicegui import app, ui
 from timer import FocusTimer
 import subjects
@@ -20,6 +21,12 @@ active_clients = set()
 
 # Thread-safety lock to prevent ASGI render loop desynchronization
 _CACHE_LOCK = threading.Lock()
+
+# Thread-safe executor strictly for SQLite disk writes to prevent OperationalError locking
+DB_WRITE_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+# Ensure application stays locked to local Brazil time regardless of Render's UTC server
+LOCAL_TZ = datetime.timezone(datetime.timedelta(hours=-3))
 
 # Global translation map (English default, selectable PT-BR)
 TRANSLATIONS = {
@@ -180,9 +187,9 @@ def global_on_session_complete(duration_seconds: int, mode: str):
         refresh_global_cache()
     
     try:
-        # Safely hand off the blocking DB save operation to the running event loop's thread pool executor
+        # Ensure single-thread safe execution for DB writes
         loop = asyncio.get_running_loop()
-        loop.run_in_executor(None, save_and_refresh)
+        loop.run_in_executor(DB_WRITE_EXECUTOR, save_and_refresh)
     except RuntimeError:
         # Robust fallback for non-async calling parameters
         threading.Thread(target=save_and_refresh, daemon=True).start()
@@ -569,7 +576,7 @@ async def build_ui():
     ''')
 
     def get_greeting() -> str:
-        hour = datetime.datetime.now().hour
+        hour = datetime.datetime.now(LOCAL_TZ).hour
         if 5 <= hour < 12:
             return t('greeting_morning')
         elif 12 <= hour < 18:
@@ -617,7 +624,7 @@ async def build_ui():
                                 with database.get_db() as db:
                                     db.execute('DELETE FROM focus_sessions')
                                 refresh_global_cache()
-                            await asyncio.get_running_loop().run_in_executor(None, b_delete)
+                            await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_delete)
                             update_display()
                             confirm_dialog.close()
                             dialog.close()
@@ -642,7 +649,7 @@ async def build_ui():
                     settings.set_setting('language', lang_val)
                     focus_timer.sync_durations()
                     refresh_global_cache()
-                await asyncio.get_running_loop().run_in_executor(None, b_save)
+                await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_save)
                 update_language_labels()  # Force update to static layouts once.
                 update_display()
                 dialog.close()
@@ -656,7 +663,7 @@ async def build_ui():
             
             with ui.row().classes('w-full items-center gap-1 mb-3 pb-3 mono-divider'):
                 new_name = ui.input(placeholder=t('edit_placeholder')).classes('w-36').props('dense dark')
-                new_weight = ui.number(value=1, format='%.0f').classes('w-10').props('dense dark')
+                new_weight = ui.number(value=1, format='%.0f', max=10).classes('w-10').props('dense dark')
                 async def quick_add():
                     if new_name.value:
                         name = new_name.value
@@ -664,7 +671,7 @@ async def build_ui():
                         def b_add():
                             subjects.add_subject(name, weight)
                             refresh_global_cache()
-                        await asyncio.get_running_loop().run_in_executor(None, b_add)
+                        await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_add)
                         new_name.value = ''
                         await rebuild_management_view()
                         update_display()
@@ -676,14 +683,14 @@ async def build_ui():
                 def b_update():
                     subjects.update_subject(s_id, name_val, int(weight_val) if weight_val else 1)
                     refresh_global_cache()
-                await asyncio.get_running_loop().run_in_executor(None, b_update)
+                await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_update)
                 refresh_global_cache()
 
             async def trigger_delete(s_id):
                 def b_delete():
                     subjects.delete_subject(s_id)
                     refresh_global_cache()
-                await asyncio.get_running_loop().run_in_executor(None, b_delete)
+                await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_delete)
                 await rebuild_management_view()
                 update_display()
             
@@ -699,7 +706,7 @@ async def build_ui():
                         with ui.row().classes('w-full items-center justify-between gap-2 p-1 bg-neutral-950 mono-divider'):
                             # Occupy full width dynamically with flex-grow
                             name_edit = ui.input(value=sub.name).classes('flex-grow').props('dense dark')
-                            weight_edit = ui.number(value=sub.weight, format='%.0f').classes('w-12').props('dense dark')
+                            weight_edit = ui.number(value=sub.weight, format='%.0f', max=10).classes('w-12').props('dense dark')
                             
                             # Optimized automatic saving routine using closed closures
                             def make_save_handler(sid, n, w, old_n, old_w):
@@ -843,46 +850,37 @@ async def build_ui():
         def b_rotate():
             subjects.rotate_subject()
             refresh_global_cache()
-        await asyncio.get_running_loop().run_in_executor(None, b_rotate)
+        await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_rotate)
         update_display()
+
+    # Helpers to prevent redundant WebSocket updates
+    def update_text(element, new_text):
+        if hasattr(element, 'text') and element.text != new_text:
+            element.text = new_text
+
+    def update_vis(element, state):
+        if element.visible != state:
+            element.set_visibility(state)
 
     def update_language_labels():
         """Isolates heavy UI language label updates to avoid WebSocket network spam during timer ticks."""
-        weekly_goal_header_label.text = t('main_weekly_goal')
-        stats_header_label.text = t('main_stats_title')
-        pace_header_label.text = t('main_pace')
-        total_hours_header_label.text = t('main_total_hours')
-        total_focus_days_header_label.text = t('main_total_days')
-        show_more_label.text = t('main_show_more')
-        timer_header_label.text = t('main_timer_title')
-        pomo_toggle_btn.text = 'Pomodoro'
-        stopwatch_toggle_btn.text = t('main_stopwatch')
-        today_static_label.text = t('main_today_label')
-        skip_btn.text = t('main_skip_break')
-        add_suggestion_inline_btn.text = t('main_define_suggestions')
+        update_text(weekly_goal_header_label, t('main_weekly_goal'))
+        update_text(stats_header_label, t('main_stats_title'))
+        update_text(pace_header_label, t('main_pace'))
+        update_text(total_hours_header_label, t('main_total_hours'))
+        update_text(total_focus_days_header_label, t('main_total_days'))
+        update_text(show_more_label, t('main_show_more'))
+        update_text(timer_header_label, t('main_timer_title'))
+        update_text(pomo_toggle_btn, 'Pomodoro')
+        update_text(stopwatch_toggle_btn, t('main_stopwatch'))
+        update_text(today_static_label, t('main_today_label'))
+        update_text(skip_btn, t('main_skip_break'))
+        update_text(add_suggestion_inline_btn, t('main_define_suggestions'))
 
         with _CACHE_LOCK:
             current_auto_rotate = cached_auto_rotate
-
-        if current_auto_rotate:
-            suggestion_title_label.text = t('main_suggestion_today')
-        else:
-            suggestion_title_label.text = t('main_suggestion_current')
-
-        # Push updates down the wire strictly once per invocation
-        weekly_goal_header_label.update()
-        stats_header_label.update()
-        pace_header_label.update()
-        total_hours_header_label.update()
-        total_focus_days_header_label.update()
-        show_more_label.update()
-        timer_header_label.update()
-        pomo_toggle_btn.update()
-        stopwatch_toggle_btn.update()
-        today_static_label.update()
-        skip_btn.update()
-        add_suggestion_inline_btn.update()
-        suggestion_title_label.update()
+        
+        update_text(suggestion_title_label, t('main_suggestion_today') if current_auto_rotate else t('main_suggestion_current'))
 
     def update_display():
         """Lean updater responsible only for dynamic timer states and performance-critical metrics."""
@@ -908,25 +906,26 @@ async def build_ui():
         is_break = focus_timer.state.mode == 'break'
 
         if focus_timer.state.mode == 'pomodoro':
-            timer_status_label.text = t('main_timer_focus')
+            update_text(timer_status_label, t('main_timer_focus'))
             timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 3px 5px 2px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
-            timer_status_label.set_visibility(True)
+            update_vis(timer_status_label, True)
             mode_label = t('main_timer_focus')
         elif focus_timer.state.mode == 'break':
-            timer_status_label.text = t('main_timer_break')
+            update_text(timer_status_label, t('main_timer_break'))
             timer_status_label.style('color: #a3b18a; background-color: rgba(163, 177, 138, 0.06); border: 0.5px solid rgba(163, 177, 138, 0.2); padding: 3px 5px 2px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
-            timer_status_label.set_visibility(True)
+            update_vis(timer_status_label, True)
             mode_label = t('main_timer_break')
         else:
-            timer_status_label.set_visibility(False)
+            update_vis(timer_status_label, False)
             mode_label = t('main_stopwatch')
 
-        timer_label.text = focus_timer.display_time
+        # Prevent unneeded WebSocket updates on labels
+        update_text(timer_label, focus_timer.display_time)
         ui.page_title(f"{focus_timer.display_time} · {mode_label}")
 
-        skip_btn.set_visibility(is_break)
-        reset_btn.set_visibility(is_pomo_mode and status != 'idle')
-        stop_btn.set_visibility(is_stopwatch and status != 'idle')
+        update_vis(skip_btn, is_break)
+        update_vis(reset_btn, is_pomo_mode and status != 'idle')
+        update_vis(stop_btn, is_stopwatch and status != 'idle')
 
         # FORCE DIRECT INLINE STYLES FOR TOGGLES TO COMPLETELY BYPASS RENDER NETWORK DELAY OVERLAPS
         is_pomo_active = focus_timer.state.mode in ('pomodoro', 'break')
@@ -954,55 +953,39 @@ async def build_ui():
         live_week = current_stats['week'] + active_focus_seconds
         live_total = current_stats['total'] + active_focus_seconds
 
-        week_label.text = f"{statistics.format_duration(live_week)} / {current_goal}h"
-        total_label.text = statistics.format_duration(live_total)
-        
-        avg_label.text = f"{current_stats['avg_week_hours']:.1f}{t('main_pace_suffix')}"
+        update_text(week_label, f"{statistics.format_duration(live_week)} / {current_goal}h")
+        update_text(total_label, statistics.format_duration(live_total))
+        update_text(avg_label, f"{current_stats['avg_week_hours']:.1f}{t('main_pace_suffix')}")
         
         live_focus_days = current_stats['focus_days']
         if current_stats['today'] == 0 and active_focus_seconds > 0:
             live_focus_days += 1
-        focus_days_label.text = f"{live_focus_days}{t('main_total_days_suffix')}"
-        
-        today_label.text = statistics.format_duration(live_today)
+        update_text(focus_days_label, f"{live_focus_days}{t('main_total_days_suffix')}")
+        update_text(today_label, statistics.format_duration(live_today))
         
         progress_val = min(1.0, live_week / goal_seconds) if goal_seconds > 0 else 0
-        week_progress.value = progress_val
+        if week_progress.value != progress_val:
+            week_progress.value = progress_val
 
         if current_subject:
-            suggestion_val_label.set_visibility(True)
-            edit_suggestion_inline_btn.set_visibility(True)
-            rotate_suggestion_inline_btn.set_visibility(True)
-            add_suggestion_inline_btn.set_visibility(False)
-            suggestion_val_label.text = f"{current_subject.name}"
+            update_vis(suggestion_val_label, True)
+            update_vis(edit_suggestion_inline_btn, True)
+            update_vis(rotate_suggestion_inline_btn, True)
+            update_vis(add_suggestion_inline_btn, False)
+            update_text(suggestion_val_label, f"{current_subject.name}")
         else:
-            suggestion_val_label.set_visibility(False)
-            edit_suggestion_inline_btn.set_visibility(False)
-            rotate_suggestion_inline_btn.set_visibility(False)
-            add_suggestion_inline_btn.set_visibility(True)
-
-        timer_label.update()
-        week_label.update()
-        total_label.update()
-        today_label.update()
-        focus_days_label.update()
-        suggestion_val_label.update()
-        edit_suggestion_inline_btn.update()
-        rotate_suggestion_inline_btn.update()
-        start_pause_btn.update()
-        reset_btn.update()
-        stop_btn.update()
-        timer_status_label.update()
-        week_progress.update()
-        avg_label.update()
+            update_vis(suggestion_val_label, False)
+            update_vis(edit_suggestion_inline_btn, False)
+            update_vis(rotate_suggestion_inline_btn, False)
+            update_vis(add_suggestion_inline_btn, True)
 
     # Offload initial database hits into the worker pool execution thread to ensure zero event loop freezes
     await asyncio.get_running_loop().run_in_executor(
-        None, lambda: (subjects.ensure_daily_rotation(), refresh_global_cache())
+        DB_WRITE_EXECUTOR, lambda: (subjects.ensure_daily_rotation(), refresh_global_cache())
     )
     
     def update_clock():
-        now = datetime.datetime.now()
+        now = datetime.datetime.now(LOCAL_TZ)
         date_str = now.strftime('%d/%m/%Y')
         with _CACHE_LOCK:
             lang = cached_language
@@ -1015,8 +998,12 @@ async def build_ui():
         else:
             day_str = now.strftime('%A')
         time_str = now.strftime('%H:%M')
-        clock_label.content = f'<div style="color: #59514a !important;">{date_str} · {day_str} · {time_str}</div>'
-        greeting_label.text = get_greeting()
+        
+        new_clock_content = f'<div style="color: #59514a !important;">{date_str} · {day_str} · {time_str}</div>'
+        if clock_label.content != new_clock_content:
+            clock_label.content = new_clock_content
+            
+        update_text(greeting_label, get_greeting())
         update_display()
 
     ui.timer(1.0, update_clock)
