@@ -52,10 +52,10 @@ def get_stats() -> Dict[str, Any]:
                 continue
         focus_days = len(local_days)
 
-        first_row = db.execute('SELECT MIN(start_date) as first_date FROM focus_sessions').fetchone()
-        first_date_str = first_row['first_date'] if first_row else None
+        # [FIX] Fetch fully qualified UTC timestamp to determine the first session date accurately based on local timezone
+        first_row = db.execute('SELECT start_date, start_time FROM focus_sessions ORDER BY id ASC LIMIT 1').fetchone()
 
-        # Optimization: Fetch only local boundary records using a highly limited time window window lookup
+        # Optimization: Fetch only local boundary records using a highly limited time window lookup
         lookback_limit = (start_of_week - datetime.timedelta(days=2)).strftime('%Y-%m-%d')
         rows = db.execute(
             'SELECT end_date, end_time, duration_seconds FROM focus_sessions WHERE start_date >= ?',
@@ -76,10 +76,12 @@ def get_stats() -> Dict[str, Any]:
             continue
 
     avg_week_hours = 0.0
-    if first_date_str:
+    if first_row:
         try:
-            first_session_date = datetime.datetime.strptime(first_date_str, '%Y-%m-%d').date()
-            days_since_first = (today_date - first_session_date).days
+            first_utc_str = f"{first_row['start_date']} {first_row['start_time']}"
+            first_utc_dt = datetime.datetime.strptime(first_utc_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
+            first_local_date = first_utc_dt.astimezone().date()
+            days_since_first = (today_date - first_local_date).days
             total_weeks = max(1.0, days_since_first / 7.0)
             avg_week_hours = (total_seconds / 3600.0) / total_weeks
         except ValueError:
