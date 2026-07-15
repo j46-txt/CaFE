@@ -15,6 +15,7 @@ Motivation and consistency are supported by tracking a weekly goal alongside a d
 * Suggestion management with custom probability weights
 * Two suggestion-rotation modes (daily automatic and manual session-based)
 * Visual progress bar for weekly goal
+* English and Brazilian Portuguese localization
 * CSV data export
 * Optional PostgreSQL cloud sync (see `.env.example`)
 
