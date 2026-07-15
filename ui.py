@@ -137,7 +137,7 @@ TRANSLATIONS = {
         'main_show_more': "Ver Mais »",
         'main_timer_title': "Temporizador",
         'main_timer_focus': "Foco",
-        'main_timer_break': "Intervalo",
+        'main_timer_break': "Pausa",
         'main_stopwatch': "Cronômetro",
         'main_today_label': "Hoje:",
         'main_skip_break': "Pular Pausa »",
