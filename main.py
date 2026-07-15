@@ -22,6 +22,11 @@ async def initialize_application_state():
     await loop.run_in_executor(None, user_interface.load_initial_stats)
     print("[Lifecycle] System startup sequence completed successfully.")
 
+@app.on_shutdown
+def flush_system_queues():
+    print("[Lifecycle] Stage 4: Flushing background queues to cloud storage...")
+    database.BACKUP_QUEUE.join()
+
 @ui.page('/')
 async def main_page(key: str = None):
     """Binds application context channels with a secret key gatekeeper."""
