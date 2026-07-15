@@ -6,22 +6,20 @@ import psycopg2
 import threading
 import queue
 import tempfile
+import time
 from contextlib import contextmanager
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'assets', 'database.sqlite')
 POSTGRES_URL = os.environ.get('DATABASE_URL')
 
-# Thread-safe queue to sequentialize cloud backup tasks and avoid thread explosions or out-of-order writes
 BACKUP_QUEUE = queue.Queue(maxsize=1)
 
 def load_cloud_backup():
-    """Fetches the binary SQLite file from the cloud and restores it locally on boot."""
     if not POSTGRES_URL:
         print("[Backup] DATABASE_URL not found. Running in ephemeral local-only mode.")
         return
     conn = None
     try:
-        # Prevent infinite connection hangs during remote network dropouts or database cold starts
         conn = psycopg2.connect(POSTGRES_URL, connect_timeout=5)
         with conn.cursor() as cur:
             cur.execute('''
@@ -38,7 +36,6 @@ def load_cloud_backup():
             if row and row[0]:
                 os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
                 
-                # Remove any stale WAL/SHM log files to avoid structural mismatch with the incoming backup
                 for suffix in ['-wal', '-shm']:
                     stale_file = DB_PATH + suffix
                     if os.path.exists(stale_file):
@@ -46,7 +43,7 @@ def load_cloud_backup():
                             os.remove(stale_file)
                         except Exception as e:
                             print(f"[Backup Error] Aborting restore. Cannot clear WAL lock: {e}")
-                            return # CRITICAL: Stop execution here to prevent database corruption
+                            return 
                             
                 with open(DB_PATH, 'wb') as f:
                     f.write(bytes(row[0]))
@@ -60,7 +57,6 @@ def load_cloud_backup():
             conn.close()
 
 def save_cloud_backup(binary_data: bytes):
-    """Uploads the consolidated local SQLite data to the cloud via a clean connection."""
     if not POSTGRES_URL:
         return
     conn = None
@@ -81,18 +77,18 @@ def save_cloud_backup(binary_data: bytes):
             conn.close()
 
 def _backup_worker():
-    """Dedicated background thread worker that sequentially uploads database snapshots using SQLite's online backup API."""
     while True:
         try:
-            # Block until a synchronization signal is queued
             BACKUP_QUEUE.get()
+            
+            # BATCHING OPTIMIZATION: Wait 5 seconds to coalesce rapid consecutive writes (e.g., pausing/unpausing)
+            time.sleep(5) 
+            
             if os.path.exists(DB_PATH):
                 tmp_path = None
                 src_conn = None
                 dst_conn = None
                 try:
-                    # Use SQLite native backup API to create a consistent point-in-time file snapshot.
-                    # This eliminates torn reads from concurrent writes and removes hot-path checkpoint overhead.
                     with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as tmp:
                         tmp_path = tmp.name
                     
@@ -109,52 +105,38 @@ def _backup_worker():
                         
                     save_cloud_backup(binary_data)
                 except Exception as e:
-                    print(f"[Backup Error] Failed to generate consistent database snapshot inside worker: {e}")
+                    print(f"[Backup Error] Failed to generate consistent database snapshot: {e}")
                 finally:
                     if dst_conn:
-                        try:
-                            dst_conn.close()
-                        except Exception:
-                            pass
+                        try: dst_conn.close()
+                        except Exception: pass
                     if src_conn:
-                        try:
-                            src_conn.close()
-                        except Exception:
-                            pass
+                        try: src_conn.close()
+                        except Exception: pass
                     if tmp_path and os.path.exists(tmp_path):
-                        try:
-                            os.remove(tmp_path)
-                        except Exception:
-                            pass
+                        try: os.remove(tmp_path)
+                        except Exception: pass
         except Exception as e:
             print(f"[Backup Worker Error] Critical failure in background backup loop: {e}")
         finally:
             BACKUP_QUEUE.task_done()
 
-# Start the persistent background synchronization thread immediately upon module import
 threading.Thread(target=_backup_worker, daemon=True, name="CaFE-BackupWorker").start()
 
 def save_cloud_backup_background():
-    """Triggers cloud backup network upload by notifying the serialized background queue worker."""
     try:
-        # Coalesce concurrent requests: if an upload is pending, drop this request 
-        # since the worker will inherently capture the latest disk state on its next pass.
         BACKUP_QUEUE.put_nowait(True)
     except queue.Full:
         pass
 
 @contextmanager
 def get_db():
-    """Provides a transactional database connection for persistent updates with automatic rollback safety."""
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = None
     tx_committed = False
     try:
-        # Set a fast timeout threshold to prevent HTTP pool exhaustion from transient write-locks
         conn = sqlite3.connect(DB_PATH, timeout=5.0)
         conn.row_factory = sqlite3.Row
-        
-        # Enforcing synchronous=NORMAL here guarantees concurrent read-write stability.
         conn.execute('PRAGMA synchronous=NORMAL;')
         
         yield conn
@@ -168,30 +150,20 @@ def get_db():
         if conn:
             try:
                 changes = conn.total_changes
-                # Downgraded from TRUNCATE to PASSIVE. The background worker now uses the online backup 
-                # API, so forcing an expensive, blocking journal truncation on the request thread is obsolete.
-                if tx_committed and changes > 0:
-                    conn.execute('PRAGMA wal_checkpoint(PASSIVE);')
-                else:
-                    changes = 0
+                # Removed PRAGMA wal_checkpoint(PASSIVE) here to eliminate main-thread disk I/O bottlenecks.
+                # SQLite will auto-checkpoint, and our background worker copies the DB safely.
             except Exception as e:
-                print(f"[Checkpoint Error] Failed to execute passive WAL checkpoint: {e}")
                 changes = 0
                 
             conn.close()
             
-            # Optimization: Only push to the cloud if the local write was successfully committed
             if tx_committed and changes > 0:
                 save_cloud_backup_background()
 
 def init_db():
-    """Initializes the SQLite tables with schema migrations safely."""
     load_cloud_backup()
-    
     with get_db() as db:
-        # Enforce WAL mode persistently on the database file during initialization
         db.execute('PRAGMA journal_mode=WAL;')
-        
         db.execute('''
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
@@ -209,7 +181,6 @@ def init_db():
             )
         ''')
         
-        # SCHEMA MIGRATIONS
         cursor = db.execute("PRAGMA table_info(subjects)")
         columns = [row['name'] for row in cursor.fetchall()]
         if 'weight' not in columns:
@@ -235,7 +206,5 @@ def init_db():
             )
         ''')
         
-        # PERFORMANCE OPTIMIZATION: Seed necessary indices to prevent future table scans 
-        # as focus log dimensions expand under long-term usage.
         db.execute('CREATE INDEX IF NOT EXISTS idx_focus_sessions_start_date ON focus_sessions(start_date);')
         db.execute('CREATE INDEX IF NOT EXISTS idx_focus_sessions_subject_id ON focus_sessions(subject_id);')
