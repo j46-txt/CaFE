@@ -44,8 +44,9 @@ def load_cloud_backup():
                     if os.path.exists(stale_file):
                         try:
                             os.remove(stale_file)
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            print(f"[Backup Error] Aborting restore. Cannot clear WAL lock: {e}")
+                            return # CRITICAL: Stop execution here to prevent database corruption
                             
                 with open(DB_PATH, 'wb') as f:
                     f.write(bytes(row[0]))
@@ -149,8 +150,8 @@ def get_db():
     conn = None
     tx_committed = False
     try:
-        # Set a prolonged timeout threshold to survive transient write-locks across multiple threads
-        conn = sqlite3.connect(DB_PATH, timeout=30.0)
+        # Set a fast timeout threshold to prevent HTTP pool exhaustion from transient write-locks
+        conn = sqlite3.connect(DB_PATH, timeout=5.0)
         conn.row_factory = sqlite3.Row
         
         # Enforcing synchronous=NORMAL here guarantees concurrent read-write stability.
