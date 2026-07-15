@@ -1018,7 +1018,7 @@ async def build_ui():
                 with ui.column().classes('gap-1'):
                     greeting_label = ui.label('').classes('frappe-light')
                     
-                   with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
+                    with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
                         # Fixed: Now respects the auto-rotate cache on initial page load
                         with _CACHE_LOCK:
                             init_auto_rotate = cached_auto_rotate
