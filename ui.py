@@ -16,15 +16,26 @@ cached_active_subject = None
 cached_weekly_goal_hours = 10
 active_clients = set()
 
+# Thread-safety lock to prevent ASGI render loop desynchronization
+_CACHE_LOCK = threading.Lock()
+
 def refresh_global_cache():
     """Refreshes all memory caches at once to prevent main thread disk blocking loops."""
     global cached_stats, cached_active_subject, cached_weekly_goal_hours
-    cached_stats = statistics.get_stats()
-    cached_active_subject = subjects.get_active_subject()
-    cached_weekly_goal_hours = settings.get_weekly_goal_hours()
+    
+    new_stats = statistics.get_stats()
+    new_subject = subjects.get_active_subject()
+    new_hours = settings.get_weekly_goal_hours()
+    
+    with _CACHE_LOCK:
+        cached_stats = new_stats
+        cached_active_subject = new_subject
+        cached_weekly_goal_hours = new_hours
 
 def global_on_session_complete(duration_seconds: int, mode: str):
-    current_subject = cached_active_subject
+    with _CACHE_LOCK:
+        current_subject = cached_active_subject
+        
     def save_and_refresh():
         if current_subject:
             statistics.record_session(current_subject.id, duration_seconds, mode)
@@ -408,9 +419,14 @@ async def build_ui():
         with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-80 rounded-none p-4 mono-card'):
             ui.label('Configuration').classes('text-xs frappe-light uppercase tracking-wider mb-4 w-full')
             
-            pomo_input = ui.number('Focus Period (min)', value=settings.get_pomodoro_minutes(), format='%.0f').classes('w-full mb-2')
-            break_input = ui.number('Break Period (min)', value=settings.get_break_minutes(), format='%.0f').classes('w-full mb-2')
-            goal_input = ui.number('Weekly Target (hours)', value=settings.get_weekly_goal_hours(), format='%.0f').classes('w-full mb-4')
+            with _CACHE_LOCK:
+                current_pomo = settings.get_pomodoro_minutes()
+                current_break = settings.get_break_minutes()
+                current_goal = cached_weekly_goal_hours
+            
+            pomo_input = ui.number('Focus Period (min)', value=current_pomo, format='%.0f').classes('w-full mb-2')
+            break_input = ui.number('Break Period (min)', value=current_break, format='%.0f').classes('w-full mb-2')
+            goal_input = ui.number('Weekly Target (hours)', value=current_goal, format='%.0f').classes('w-full mb-4')
             
             def confirm_reset():
                 with ui.dialog().props('transition-show=none transition-hide=none') as confirm_dialog, ui.card().classes('w-72 rounded-none p-4 mono-card'):
@@ -616,6 +632,12 @@ async def build_ui():
     def update_display():
         status = focus_timer.state.status
 
+        # Safely capture a snapshot of the current state via Thread Lock
+        with _CACHE_LOCK:
+            current_stats = cached_stats.copy()
+            current_subject = cached_active_subject
+            current_goal = cached_weekly_goal_hours
+
         if status == 'idle':
             start_pause_btn.props("icon=play_arrow")
         elif status == 'running':
@@ -668,19 +690,19 @@ async def build_ui():
         if status == 'running':
             active_focus_seconds = focus_timer.state.seconds_focused_in_turn
 
-        goal_seconds = cached_weekly_goal_hours * 3600
+        goal_seconds = current_goal * 3600
 
-        live_today = cached_stats['today'] + active_focus_seconds
-        live_week = cached_stats['week'] + active_focus_seconds
-        live_total = cached_stats['total'] + active_focus_seconds
+        live_today = current_stats['today'] + active_focus_seconds
+        live_week = current_stats['week'] + active_focus_seconds
+        live_total = current_stats['total'] + active_focus_seconds
 
-        week_label.text = f"{statistics.format_duration(live_week)} / {cached_weekly_goal_hours}h"
+        week_label.text = f"{statistics.format_duration(live_week)} / {current_goal}h"
         total_label.text = statistics.format_duration(live_total)
         
-        avg_label.text = f"{cached_stats['avg_week_hours']:.1f} hours/week"
+        avg_label.text = f"{current_stats['avg_week_hours']:.1f} hours/week"
         
-        live_focus_days = cached_stats['focus_days']
-        if cached_stats['today'] == 0 and active_focus_seconds > 0:
+        live_focus_days = current_stats['focus_days']
+        if current_stats['today'] == 0 and active_focus_seconds > 0:
             live_focus_days += 1
         focus_days_label.text = f"{live_focus_days} days"
         
@@ -689,11 +711,11 @@ async def build_ui():
         progress_val = min(1.0, live_week / goal_seconds) if goal_seconds > 0 else 0
         week_progress.value = progress_val
         
-        if cached_active_subject:
+        if current_subject:
             suggestion_val_label.set_visibility(True)
             edit_suggestion_inline_btn.set_visibility(True)
             add_suggestion_inline_btn.set_visibility(False)
-            suggestion_val_label.text = f"{cached_active_subject.name}"
+            suggestion_val_label.text = f"{current_subject.name}"
         else:
             suggestion_val_label.set_visibility(False)
             edit_suggestion_inline_btn.set_visibility(False)
