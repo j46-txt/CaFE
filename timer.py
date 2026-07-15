@@ -53,8 +53,8 @@ class FocusTimer:
 
     def handle_disconnect(self) -> None:
         """Triggers an automatic pause flush when no client interfaces are active."""
-        if self.state.status == 'running':
-            self.pause()
+        # [FIX] Removed self.pause() to prevent ephemeral network drops from ruining focus flow
+        pass
 
     def skip(self) -> None:
         if self.state.mode == 'break':
@@ -89,6 +89,12 @@ class FocusTimer:
         now = time.monotonic()
         delta = int(now - self._last_tick_time)
         if delta > 0:
+            # [FIX] System sleep/hibernation safeguard to prevent massive data corruption
+            if delta > 10:  
+                self.pause()
+                self._last_tick_time = now
+                return 
+
             self._last_tick_time += delta  
             
             if self.state.mode in ('pomodoro', 'stopwatch'):
