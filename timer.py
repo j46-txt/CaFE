@@ -38,31 +38,33 @@ class FocusTimer:
                 self.state.seconds_elapsed = 0
             self.state.seconds_focused_in_turn = 0
         self.state.status = 'running'
-        # OPTIMIZATION: Switched to monotonic tracking references to eliminate system clock variance errors
+        # Utiliza tempo monotônico para evitar distorções por alterações no relógio do sistema
         self._last_tick_time = time.monotonic()
         self.on_tick()
 
     def pause(self) -> None:
         if self.state.status == 'running':
             self.state.status = 'paused'
-            # Secure exact fractional study data into the database upon pausing
+            # Registra no banco o tempo exato acumulado até o momento da pausa
             if self.state.mode in ('pomodoro', 'stopwatch') and self.state.seconds_focused_in_turn > 0:
                 self.on_complete(self.state.seconds_focused_in_turn, self.state.mode)
             self.state.seconds_focused_in_turn = 0
         self.on_tick()
 
     def handle_disconnect(self) -> None:
-        """Triggers an automatic pause flush when no client interfaces are active."""
-        # [FIX] Removed self.pause() to prevent ephemeral network drops from ruining focus flow
+        """Mantém o fluxo do timer ativo mesmo em desconexões temporárias de interface."""
         pass
 
     def skip(self) -> None:
         if self.state.mode == 'break':
             self.state.mode = 'pomodoro'
             self._reset()
-            self.start()
+            self.on_tick()  # Mantém o timer em 'idle' aguardando o clique do usuário
 
     def reset(self) -> None:
+        # Salva qualquer tempo de foco acumulado antes de resetar
+        if self.state.mode in ('pomodoro', 'stopwatch') and self.state.seconds_focused_in_turn > 0:
+            self.on_complete(self.state.seconds_focused_in_turn, self.state.mode)
         self.state.seconds_focused_in_turn = 0
         self._reset()
         self.on_tick()
@@ -79,6 +81,10 @@ class FocusTimer:
         new_mode = new_mode.lower()
         if new_mode not in ('pomodoro', 'stopwatch'):
             return
+        # Salva o progresso caso o usuário mude de modo durante uma sessão ativa
+        if self.state.mode in ('pomodoro', 'stopwatch') and self.state.seconds_focused_in_turn > 0:
+            self.on_complete(self.state.seconds_focused_in_turn, self.state.mode)
+        self.state.seconds_focused_in_turn = 0
         self.state.mode = new_mode
         self._reset()
         self.on_tick()
@@ -89,7 +95,7 @@ class FocusTimer:
         now = time.monotonic()
         delta = int(now - self._last_tick_time)
         if delta > 0:
-            # [FIX] System sleep/hibernation safeguard to prevent massive data corruption
+            # Proteção contra suspensão/hibernação do SO (evita picos irreais)
             if delta > 10:  
                 self.pause()
                 self._last_tick_time = now
