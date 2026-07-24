@@ -147,16 +147,17 @@ def get_db():
             conn.rollback()
         raise
     finally:
+        changes = 0
         if conn:
             try:
+                # Capture total changes BEFORE closing connection[span_7](start_span)[span_7](end_span)
                 changes = conn.total_changes
             except Exception:
                 changes = 0
-                
             conn.close()
             
-            if tx_committed and changes > 0:
-                save_cloud_backup_background()
+        if tx_committed and changes > 0:
+            save_cloud_backup_background()
 
 def save_or_update_focus_session(
     session_id: int | None,
