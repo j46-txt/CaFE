@@ -210,13 +210,66 @@ def global_on_session_complete(
     return new_session_id
 
 def global_on_timer_end(mode: str):
-    # Safe non-blocking broadcast across all active user client connections
-    js_code = ""
+    # Safe non-blocking broadcast across all active user client connections using Web Audio API
     if mode == 'pomodoro':
-        js_code = "const ctx = new (window.AudioContext || window.webkitAudioContext)(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); gain.gain.setValueAtTime(0.1, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + 0.5);"
+        # END OF FOCUS / START OF BREAK: Ascending major chord (C-E-G) in Sine wave (smooth/relaxing)
+        js_code = """
+        (function() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                if (!window.cafeAudioCtx) window.cafeAudioCtx = new AudioCtx();
+                const ctx = window.cafeAudioCtx;
+                if (ctx.state === 'suspended') ctx.resume();
+
+                const now = ctx.currentTime;
+                const freqs = [523.25, 659.25, 784.00]; // C5, E5, G5
+                freqs.forEach((f, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(f, now + i * 0.12);
+                    gain.gain.setValueAtTime(0.15, now + i * 0.12);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.35);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + i * 0.12);
+                    osc.stop(now + i * 0.12 + 0.35);
+                });
+            } catch(e) {}
+        })();
+        """
     elif mode == 'break':
-        js_code = "const ctx = new (window.AudioContext || window.webkitAudioContext)(); [0, 0.2].forEach(t => { const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'square'; osc.frequency.setValueAtTime(440, ctx.currentTime + t); gain.gain.setValueAtTime(0.05, ctx.currentTime + t); gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + t + 0.15); osc.connect(gain); gain.connect(ctx.destination); osc.start(ctx.currentTime + t); osc.stop(ctx.currentTime + t + 0.15); });"
-    
+        # END OF BREAK / START OF FOCUS: Descending alert tone (G-C) in Triangle wave (sharp/clear)
+        js_code = """
+        (function() {
+            try {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                if (!window.cafeAudioCtx) window.cafeAudioCtx = new AudioCtx();
+                const ctx = window.cafeAudioCtx;
+                if (ctx.state === 'suspended') ctx.resume();
+
+                const now = ctx.currentTime;
+                const freqs = [784.00, 523.25]; // G5 -> C5
+                freqs.forEach((f, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(f, now + i * 0.15);
+                    gain.gain.setValueAtTime(0.2, now + i * 0.15);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.15 + 0.4);
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.start(now + i * 0.15);
+                    osc.stop(now + i * 0.15 + 0.4);
+                });
+            } catch(e) {}
+        })();
+        """
+    else:
+        js_code = ""
+
     if js_code:
         for client in list(active_clients):
             try:
@@ -590,6 +643,18 @@ async def build_ui():
             color: #ebdcd0 !important;
         }
     </style>
+    <script>
+        // AUTOMATIC AUDIO UNLOCK ON FIRST USER INTERACTION
+        document.addEventListener('click', function unlockAudio() {
+            if (!window.cafeAudioCtx) {
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (AudioCtx) window.cafeAudioCtx = new AudioCtx();
+            }
+            if (window.cafeAudioCtx && window.cafeAudioCtx.state === 'suspended') {
+                window.cafeAudioCtx.resume();
+            }
+        }, { once: false });
+    </script>
     ''')
 
     def get_greeting() -> str:
