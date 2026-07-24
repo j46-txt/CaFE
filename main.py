@@ -20,11 +20,15 @@ async def initialize_application_state():
     
     print("[Lifecycle] Stage 3: Hydrating user interface state caches...")
     await loop.run_in_executor(None, user_interface.load_initial_stats)
+
+    print("[Lifecycle] Stage 4: Starting background timer engine...")
+    asyncio.create_task(user_interface.global_timer_ticker())
+
     print("[Lifecycle] System startup sequence completed successfully.")
 
 @app.on_shutdown
 def flush_system_queues():
-    print("[Lifecycle] Stage 4: Flushing background queues to cloud storage...")
+    print("[Lifecycle] Stage 5: Flushing background queues to cloud storage...")
     database.BACKUP_QUEUE.join()
 
 @ui.page('/')
