@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import threading
 import concurrent.futures
+from typing import Optional
 from nicegui import app, ui
 from timer import FocusTimer
 import subjects
@@ -177,22 +178,36 @@ def refresh_global_cache():
         cached_auto_rotate = new_auto_rotate
         cached_language = new_language
 
-def global_on_session_complete(duration_seconds: int, mode: str):
+def global_on_session_complete(
+    duration_seconds: int,
+    mode: str,
+    session_id: Optional[int] = None,
+    start_time: Optional[datetime.datetime] = None
+) -> Optional[int]:
+    """Saves or updates focus session record and returns generated/updated session ID."""
     with _CACHE_LOCK:
         current_subject = cached_active_subject
         
-    def save_and_refresh():
-        if current_subject:
-            statistics.record_session(current_subject.id, duration_seconds, mode)
-        refresh_global_cache()
-    
+    subject_id = current_subject.id if current_subject else None
+    end_dt = datetime.datetime.now(datetime.timezone.utc)
+    start_dt = start_time or (end_dt - datetime.timedelta(seconds=duration_seconds))
+
+    new_session_id = database.save_or_update_focus_session(
+        session_id=session_id,
+        subject_id=subject_id,
+        start_dt=start_dt,
+        end_dt=end_dt,
+        duration_seconds=duration_seconds,
+        timer_mode=mode
+    )
+
     try:
-        # Ensure single-thread safe execution for DB writes
         loop = asyncio.get_running_loop()
-        loop.run_in_executor(DB_WRITE_EXECUTOR, save_and_refresh)
+        loop.run_in_executor(DB_WRITE_EXECUTOR, refresh_global_cache)
     except RuntimeError:
-        # Robust fallback for non-async calling parameters
-        threading.Thread(target=save_and_refresh, daemon=True).start()
+        threading.Thread(target=refresh_global_cache, daemon=True).start()
+
+    return new_session_id
 
 def global_on_timer_end(mode: str):
     # Safe non-blocking broadcast across all active user client connections
@@ -209,14 +224,16 @@ def global_on_timer_end(mode: str):
             except Exception:
                 pass
 
-focus_timer = FocusTimer(on_tick=lambda: None, on_complete=global_on_session_complete, on_timer_end=global_on_timer_end)
+focus_timer = FocusTimer(
+    on_tick=lambda: None,
+    on_complete=global_on_session_complete,
+    on_sound_alert=global_on_timer_end
+)
 
 async def global_timer_ticker():
     while True:
         await asyncio.sleep(1.0)
         focus_timer.tick()
-
-app.on_startup(global_timer_ticker)
 
 def load_initial_stats():
     """Hydrates local UI state from the database; safely invoked by main orchestrator."""
@@ -504,12 +521,12 @@ async def build_ui():
         @keyframes gradient-flow-right {
             0% { background-position: 200% 50%; }
             100% { background-position: 0% 50%; }
-            }
+        }
         .q-linear-progress__model {
             background: linear-gradient(90deg, #120c09, #6f4e37, #120c09) !important;
             background-size: 200% 200% !important;
             animation: gradient-flow-right 3s linear infinite !important;
-            }
+        }
         
         /* SKIP BREAK LINK SHORTCUT BUTTON */
         .skip-btn-custom {
@@ -635,9 +652,10 @@ async def build_ui():
             ui.button(t('config_reset_stats'), on_click=confirm_reset).props('flat dense no-ripple').classes('text-red-500/70 hover:text-red-400 text-xs self-start mb-3').style('text-transform: none; padding-left: 0;')
 
             async def save_settings():
-                pomo_val = int(pomo_input.value) if pomo_input.value is not None else 25
-                break_val = int(break_input.value) if break_input.value is not None else 5
-                goal_val = int(goal_input.value) if goal_input.value is not None else 10
+                # Enforce lower bound of 1 to prevent zero/negative duration timer lockups[span_9](start_span)[span_9](end_span)
+                pomo_val = max(1, int(pomo_input.value)) if pomo_input.value is not None else 25
+                break_val = max(1, int(break_input.value)) if break_input.value is not None else 5
+                goal_val = max(1, int(goal_input.value)) if goal_input.value is not None else 10
                 auto_rotate_val = bool(rotation_mode_input.value)
                 lang_val = str(language_input.value)
 
@@ -820,7 +838,7 @@ async def build_ui():
                                 day_name = day_names.get(dt_obj.strftime('%a'), '???')
                             else:
                                 day_name = dt_obj.strftime('%a')
-                        except:
+                        except Exception:  # Avoid bare except
                             day_name = '???'
                             
                         with ui.row().classes('w-full justify-between py-1 border-b border-neutral-950 text-[11px]'):
