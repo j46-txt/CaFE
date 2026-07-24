@@ -3,7 +3,7 @@
 import time
 from dataclasses import dataclass
 from typing import Callable, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import settings
 
 PAUSE_LONG_THRESHOLD_SECONDS = 300
@@ -27,7 +27,7 @@ class FocusTimer:
         """
         :param on_tick: Callback triggered on every timer step.
         :param on_complete: Callback to log/update study session in DB.
-        :param on_sound_alert: Optional audio trigger ('focus_complete' or 'break_complete').
+        :param on_sound_alert: Optional audio trigger ('pomodoro' or 'break').
         :param on_long_pause_prompt: Optional callback returning 'continue' or 'new_session' after 5+ min pause.
         """
         self.state = TimerState()
@@ -72,7 +72,7 @@ class FocusTimer:
 
             if self.current_session_id is None:
                 self.accumulated_seconds = 0
-                self.session_start_time = datetime.now()
+                self.session_start_time = datetime.now(timezone.utc)
 
             if self.state.status == 'idle':
                 self.sync_durations()
@@ -92,7 +92,7 @@ class FocusTimer:
             
             if self.state.mode in ('pomodoro', 'stopwatch') and total_focused > 0:
                 if self.session_start_time is None:
-                    self.session_start_time = datetime.now()
+                    self.session_start_time = datetime.now(timezone.utc)
                 
                 new_session_id = self.on_complete(
                     total_focused,
@@ -167,7 +167,7 @@ class FocusTimer:
                     if is_pomodoro:
                         if total_focused > 0:
                             if self.session_start_time is None:
-                                self.session_start_time = datetime.now()
+                                self.session_start_time = datetime.now(timezone.utc)
                             self.on_complete(
                                 total_focused,
                                 'pomodoro',
@@ -175,13 +175,15 @@ class FocusTimer:
                                 self.session_start_time
                             )
                         if self.on_sound_alert:
-                            self.on_sound_alert('focus_complete')
+                            self.on_sound_alert('pomodoro')
+                        self._clear_session_state()  # Ensure dirty session state is cleared[span_8](start_span)[span_8](end_span)
                         self.state.mode = 'break'
                         self._reset()
                         self.start()  # Auto-starts Break timer
                     else:
                         if self.on_sound_alert:
-                            self.on_sound_alert('break_complete')
+                            self.on_sound_alert('break')
+                        self._clear_session_state()
                         self.state.mode = 'pomodoro'
                         self._reset()
                         self.start()  # Auto-starts next Focus timer
@@ -194,7 +196,7 @@ class FocusTimer:
         total_focused = self.accumulated_seconds + self.state.seconds_focused_in_turn
         if self.state.mode in ('pomodoro', 'stopwatch') and total_focused > 0:
             if self.session_start_time is None:
-                self.session_start_time = datetime.now()
+                self.session_start_time = datetime.now(timezone.utc)
             self.on_complete(
                 total_focused,
                 self.state.mode,
