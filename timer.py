@@ -176,7 +176,7 @@ class FocusTimer:
                             )
                         if self.on_sound_alert:
                             self.on_sound_alert('pomodoro')
-                        self._clear_session_state()  # Ensure dirty session state is cleared[span_8](start_span)[span_8](end_span)
+                        self._clear_session_state()
                         self.state.mode = 'break'
                         self._reset()
                         self.start()  # Auto-starts Break timer
