@@ -7,7 +7,6 @@ import database
 import subjects
 import ui as user_interface
 
-# Monolithic single-entry startup pipeline to orchestrate dependency loading sequentially
 @app.on_startup
 async def initialize_application_state():
     loop = asyncio.get_running_loop()
