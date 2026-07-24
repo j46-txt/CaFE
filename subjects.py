@@ -17,7 +17,7 @@ class Subject:
     is_active: bool
     list_order: int
     weight: int = 1
-    is_deleted: int = 0
+    is_deleted: bool = False
     tickets_remaining: int = 0
     last_picked_turn: int = 0
 
@@ -29,7 +29,18 @@ def seed_default_subjects() -> None:
 def get_all_subjects() -> List[Subject]:
     with database.get_db() as db:
         rows = db.execute('SELECT * FROM subjects WHERE is_deleted = 0 ORDER BY list_order ASC').fetchall()
-        return [Subject(**dict(row)) for row in rows]
+        return [
+            Subject(
+                id=row['id'],
+                name=row['name'],
+                is_active=bool(row['is_active']),
+                list_order=row['list_order'],
+                weight=row['weight'],
+                is_deleted=bool(row['is_deleted']),
+                tickets_remaining=row['tickets_remaining'],
+                last_picked_turn=row['last_picked_turn']
+            ) for row in rows
+        ]
 
 def add_subject(name: str, weight: int = 1) -> None:
     if not name.strip():
@@ -39,16 +50,17 @@ def add_subject(name: str, weight: int = 1) -> None:
         new_order = 0 if max_order is None else max_order + 1
         safe_weight = max(1, min(weight, 10))
         
-        db.execute(
+        cursor = db.execute(
             '''INSERT INTO subjects 
                (name, is_active, list_order, weight, is_deleted, tickets_remaining, last_picked_turn) 
                VALUES (?, ?, ?, ?, 0, ?, 0)''',
             (name.strip(), 0, new_order, safe_weight, safe_weight)
         )
+        new_id = cursor.lastrowid
         
         count = db.execute('SELECT COUNT(*) as count FROM subjects WHERE is_deleted = 0').fetchone()['count']
         if count == 1:
-            db.execute('UPDATE subjects SET is_active = 1 WHERE name = ? AND is_deleted = 0', (name.strip(),))
+            db.execute('UPDATE subjects SET is_active = 1 WHERE id = ?', (new_id,))
 
 def update_subject(subject_id: int, name: str, weight: int) -> None:
     if not name.strip():
@@ -83,17 +95,35 @@ def delete_subject(subject_id: int) -> None:
 def set_active_subject(subject_id: int) -> None:
     with database.get_db() as db:
         db.execute('UPDATE subjects SET is_active = 0')
-        db.execute('UPDATE subjects SET is_active = 1 WHERE id = ?', (subject_id,))
+        db.execute('UPDATE subjects SET is_active = 1 WHERE id = ? AND is_deleted = 0', (subject_id,))
 
 def get_active_subject() -> Optional[Subject]:
     with database.get_db() as db:
         row = db.execute('SELECT * FROM subjects WHERE is_active = 1 AND is_deleted = 0 LIMIT 1').fetchone()
         if row:
-            return Subject(**dict(row))
+            return Subject(
+                id=row['id'],
+                name=row['name'],
+                is_active=bool(row['is_active']),
+                list_order=row['list_order'],
+                weight=row['weight'],
+                is_deleted=bool(row['is_deleted']),
+                tickets_remaining=row['tickets_remaining'],
+                last_picked_turn=row['last_picked_turn']
+            )
         row = db.execute('SELECT * FROM subjects WHERE is_deleted = 0 ORDER BY list_order ASC LIMIT 1').fetchone()
         if row:
             db.execute('UPDATE subjects SET is_active = 1 WHERE id = ?', (row['id'],))
-            return Subject(**dict(row))
+            return Subject(
+                id=row['id'],
+                name=row['name'],
+                is_active=True,
+                list_order=row['list_order'],
+                weight=row['weight'],
+                is_deleted=bool(row['is_deleted']),
+                tickets_remaining=row['tickets_remaining'],
+                last_picked_turn=row['last_picked_turn']
+            )
     return None
 
 def rotate_subject() -> None:
@@ -103,6 +133,7 @@ def rotate_subject() -> None:
             if not all_subs:
                 return
             if len(all_subs) == 1:
+                db.execute('UPDATE subjects SET is_active = 0')
                 db.execute('UPDATE subjects SET is_active = 1 WHERE id = ?', (all_subs[0]['id'],))
                 return
 
