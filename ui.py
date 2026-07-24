@@ -652,10 +652,19 @@ async def build_ui():
             ui.button(t('config_reset_stats'), on_click=confirm_reset).props('flat dense no-ripple').classes('text-red-500/70 hover:text-red-400 text-xs self-start mb-3').style('text-transform: none; padding-left: 0;')
 
             async def save_settings():
-                # Enforce lower bound of 1 to prevent zero/negative duration timer lockups[span_9](start_span)[span_9](end_span)
-                pomo_val = max(1, int(pomo_input.value)) if pomo_input.value is not None else 25
-                break_val = max(1, int(break_input.value)) if break_input.value is not None else 5
-                goal_val = max(1, int(goal_input.value)) if goal_input.value is not None else 10
+                try:
+                    pomo_val = max(1, int(pomo_input.value)) if pomo_input.value is not None else 25
+                except (ValueError, TypeError):
+                    pomo_val = 25
+                try:
+                    break_val = max(1, int(break_input.value)) if break_input.value is not None else 5
+                except (ValueError, TypeError):
+                    break_val = 5
+                try:
+                    goal_val = max(1, int(goal_input.value)) if goal_input.value is not None else 10
+                except (ValueError, TypeError):
+                    goal_val = 10
+                    
                 auto_rotate_val = bool(rotation_mode_input.value)
                 lang_val = str(language_input.value)
 
@@ -668,7 +677,7 @@ async def build_ui():
                     focus_timer.sync_durations()
                     refresh_global_cache()
                 await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_save)
-                update_language_labels()  # Force update to static layouts once.
+                update_language_labels()  # Force update static layouts
                 update_display()
                 dialog.close()
 
@@ -685,7 +694,10 @@ async def build_ui():
                 async def quick_add():
                     if new_name.value:
                         name = new_name.value
-                        weight = int(new_weight.value) if new_weight.value else 1
+                        try:
+                            weight = int(new_weight.value) if new_weight.value is not None else 1
+                        except (ValueError, TypeError):
+                            weight = 1
                         def b_add():
                             subjects.add_subject(name, weight)
                             refresh_global_cache()
@@ -702,7 +714,7 @@ async def build_ui():
                     subjects.update_subject(s_id, name_val, int(weight_val) if weight_val else 1)
                     refresh_global_cache()
                 await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_update)
-                refresh_global_cache()
+                update_display()
 
             async def trigger_delete(s_id):
                 def b_delete():
@@ -722,22 +734,22 @@ async def build_ui():
                     
                     for sub in all_items:
                         with ui.row().classes('w-full items-center justify-between gap-2 p-1 bg-neutral-950 mono-divider'):
-                            # Occupy full width dynamically with flex-grow
                             name_edit = ui.input(value=sub.name).classes('flex-grow').props('dense dark')
                             weight_edit = ui.number(value=sub.weight, format='%.0f', max=10).classes('w-12').props('dense dark')
                             
-                            # Optimized automatic saving routine using closed closures
                             def make_save_handler(sid, n, w, old_n, old_w):
                                 async def handler():
                                     new_name = n.value
-                                    new_weight = int(w.value) if w.value else 1
+                                    try:
+                                        new_weight = int(w.value) if w.value is not None else 1
+                                    except (ValueError, TypeError):
+                                        new_weight = 1
                                     if new_name != old_n or new_weight != old_w:
                                         await trigger_update(sid, new_name, new_weight)
                                 return handler
                             
                             save_handler = make_save_handler(sub.id, name_edit, weight_edit, sub.name, sub.weight)
                             
-                            # Dynamic triggers to auto-save on blurs and enter key strokes
                             name_edit.on('blur', save_handler)
                             name_edit.on('keydown.enter', save_handler)
                             weight_edit.on('blur', save_handler)
@@ -769,7 +781,6 @@ async def build_ui():
         dialog.open()
 
     async def open_history_panel():
-        # Render dialog immediately with loading spinner to prevent UI freeze
         with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[480px] rounded-none p-4 mono-card'):
             with ui.row().classes('w-full justify-between items-center mb-3 pb-1 mono-divider'):
                 ui.label(t('log_title')).classes('text-xs frappe-light uppercase tracking-wider')
@@ -838,7 +849,7 @@ async def build_ui():
                                 day_name = day_names.get(dt_obj.strftime('%a'), '???')
                             else:
                                 day_name = dt_obj.strftime('%a')
-                        except Exception:  # Avoid bare except
+                        except Exception:
                             day_name = '???'
                             
                         with ui.row().classes('w-full justify-between py-1 border-b border-neutral-950 text-[11px]'):
@@ -871,7 +882,6 @@ async def build_ui():
         await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_rotate)
         update_display()
 
-    # Helpers to prevent redundant WebSocket updates
     def update_text(element, new_text):
         if hasattr(element, 'text') and element.text != new_text:
             element.text = new_text
@@ -904,13 +914,11 @@ async def build_ui():
         """Lean updater responsible only for dynamic timer states and performance-critical metrics."""
         status = focus_timer.state.status
 
-        # Safely capture a snapshot of the current state via Thread Lock
         with _CACHE_LOCK:
             current_stats = cached_stats.copy()
             current_subject = cached_active_subject
             current_goal = cached_weekly_goal_hours
             current_auto_rotate = cached_auto_rotate
-            current_language = cached_language
 
         if status == 'idle':
             start_pause_btn.props("icon=play_arrow")
@@ -937,15 +945,17 @@ async def build_ui():
             update_vis(timer_status_label, False)
             mode_label = t('main_stopwatch')
 
-        # Prevent unneeded WebSocket updates on labels
         update_text(timer_label, focus_timer.display_time)
-        ui.page_title(f"{focus_timer.display_time} · {mode_label}")
+        
+        new_page_title = f"{focus_timer.display_time} · {mode_label}"
+        if getattr(client, '_last_page_title', None) != new_page_title:
+            ui.page_title(new_page_title)
+            client._last_page_title = new_page_title
 
         update_vis(skip_btn, is_break)
         update_vis(reset_btn, is_pomo_mode and status != 'idle')
         update_vis(stop_btn, is_stopwatch and status != 'idle')
 
-        # FORCE DIRECT INLINE STYLES FOR TOGGLES TO COMPLETELY BYPASS RENDER NETWORK DELAY OVERLAPS
         is_pomo_active = focus_timer.state.mode in ('pomodoro', 'break')
         if is_pomo_active:
             pomo_toggle_btn.style('background-color: #4e3629 !important; color: #ebdcd0 !important; border: 1px solid #4e3629 !important;')
@@ -980,6 +990,7 @@ async def build_ui():
             live_focus_days += 1
         update_text(focus_days_label, f"{live_focus_days}{t('main_total_days_suffix')}")
         update_text(today_label, statistics.format_duration(live_today))
+        update_text(suggestion_title_label, t('main_suggestion_today') if current_auto_rotate else t('main_suggestion_current'))
         
         progress_val = min(1.0, live_week / goal_seconds) if goal_seconds > 0 else 0
         if week_progress.value != progress_val:
@@ -997,7 +1008,6 @@ async def build_ui():
             update_vis(rotate_suggestion_inline_btn, False)
             update_vis(add_suggestion_inline_btn, True)
 
-    # Offload initial database hits into the worker pool execution thread to ensure zero event loop freezes
     await asyncio.get_running_loop().run_in_executor(
         DB_WRITE_EXECUTOR, lambda: (subjects.ensure_daily_rotation(), refresh_global_cache())
     )
@@ -1037,7 +1047,6 @@ async def build_ui():
                     greeting_label = ui.label('').classes('frappe-light')
                     
                     with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
-                        # Fixed: Now respects the auto-rotate cache on initial page load
                         with _CACHE_LOCK:
                             init_auto_rotate = cached_auto_rotate
                         
