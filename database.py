@@ -7,6 +7,7 @@ import threading
 import queue
 import tempfile
 import time
+from datetime import datetime
 from contextlib import contextmanager
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'assets', 'database.sqlite')
@@ -42,8 +43,7 @@ def load_cloud_backup():
                         try:
                             os.remove(stale_file)
                         except Exception as e:
-                            print(f"[Backup Error] Aborting restore. Cannot clear WAL lock: {e}")
-                            return 
+                            print(f"[Backup Warning] Could not remove stale lock file {stale_file}: {e}")
                             
                 with open(DB_PATH, 'wb') as f:
                     f.write(bytes(row[0]))
@@ -80,8 +80,6 @@ def _backup_worker():
     while True:
         try:
             BACKUP_QUEUE.get()
-            
-            # BATCHING OPTIMIZATION: Wait 5 seconds to coalesce rapid consecutive writes (e.g., pausing/unpausing)
             time.sleep(5) 
             
             if os.path.exists(DB_PATH):
@@ -89,8 +87,10 @@ def _backup_worker():
                 src_conn = None
                 dst_conn = None
                 try:
-                    with tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False) as tmp:
-                        tmp_path = tmp.name
+                    # Explicitly close named temporary file handle to avoid Windows file lock issues
+                    tmp = tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False)
+                    tmp_path = tmp.name
+                    tmp.close()
                     
                     src_conn = sqlite3.connect(DB_PATH, timeout=30.0)
                     dst_conn = sqlite3.connect(tmp_path)
@@ -150,15 +150,44 @@ def get_db():
         if conn:
             try:
                 changes = conn.total_changes
-                # Removed PRAGMA wal_checkpoint(PASSIVE) here to eliminate main-thread disk I/O bottlenecks.
-                # SQLite will auto-checkpoint, and our background worker copies the DB safely.
-            except Exception as e:
+            except Exception:
                 changes = 0
                 
             conn.close()
             
             if tx_committed and changes > 0:
                 save_cloud_backup_background()
+
+def save_or_update_focus_session(
+    session_id: int | None,
+    subject_id: int | None,
+    start_dt: datetime,
+    end_dt: datetime,
+    duration_seconds: int,
+    timer_mode: str
+) -> int:
+    """Inserts a new session or updates an existing one using session ID continuity."""
+    start_date = start_dt.strftime('%Y-%m-%d')
+    start_time = start_dt.strftime('%H:%M:%S')
+    end_date = end_dt.strftime('%Y-%m-%d')
+    end_time = end_dt.strftime('%H:%M:%S')
+
+    with get_db() as db:
+        if session_id is not None:
+            cursor = db.execute("SELECT id FROM focus_sessions WHERE id = ?", (session_id,))
+            if cursor.fetchone():
+                db.execute('''
+                    UPDATE focus_sessions
+                    SET end_date = ?, end_time = ?, duration_seconds = ?
+                    WHERE id = ?
+                ''', (end_date, end_time, duration_seconds, session_id))
+                return session_id
+
+        cursor = db.execute('''
+            INSERT INTO focus_sessions (subject_id, start_date, start_time, end_date, end_time, duration_seconds, timer_mode)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (subject_id, start_date, start_time, end_date, end_time, duration_seconds, timer_mode))
+        return cursor.lastrowid
 
 def init_db():
     load_cloud_backup()
