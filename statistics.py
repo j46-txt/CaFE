@@ -39,8 +39,15 @@ def get_stats() -> Dict[str, Any]:
         total_row = db.execute('SELECT TOTAL(duration_seconds) as total_sec FROM focus_sessions').fetchone()
         total_seconds = int(total_row['total_sec']) if total_row else 0
 
-        days_row = db.execute('SELECT COUNT(DISTINCT start_date) as days FROM focus_sessions').fetchone()
-        focus_days = int(days_row['days']) if days_row else 0
+        all_dates_rows = db.execute('SELECT start_date, start_time FROM focus_sessions').fetchall()
+        local_focus_days = set()
+        for r in all_dates_rows:
+            try:
+                utc_dt = datetime.datetime.strptime(f"{r['start_date']} {r['start_time']}", '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
+                local_focus_days.add(utc_dt.astimezone(LOCAL_TZ).date())
+            except (ValueError, TypeError):
+                local_focus_days.add(r['start_date'])
+        focus_days = len(local_focus_days)
 
         first_row = db.execute('SELECT start_date, start_time FROM focus_sessions ORDER BY id ASC LIMIT 1').fetchone()
 
