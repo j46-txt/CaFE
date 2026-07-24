@@ -8,6 +8,7 @@ import queue
 import tempfile
 import time
 from datetime import datetime
+from typing import Optional
 from contextlib import contextmanager
 
 DB_PATH = os.path.join(os.path.dirname(__file__), 'assets', 'database.sqlite')
@@ -87,7 +88,6 @@ def _backup_worker():
                 src_conn = None
                 dst_conn = None
                 try:
-                    # Explicitly close named temporary file handle to avoid Windows file lock issues
                     tmp = tempfile.NamedTemporaryFile(suffix='.sqlite', delete=False)
                     tmp_path = tmp.name
                     tmp.close()
@@ -150,7 +150,6 @@ def get_db():
         changes = 0
         if conn:
             try:
-                # Capture total changes BEFORE closing connection[span_7](start_span)[span_7](end_span)
                 changes = conn.total_changes
             except Exception:
                 changes = 0
@@ -160,8 +159,8 @@ def get_db():
             save_cloud_backup_background()
 
 def save_or_update_focus_session(
-    session_id: int | None,
-    subject_id: int | None,
+    session_id: Optional[int],
+    subject_id: Optional[int],
     start_dt: datetime,
     end_dt: datetime,
     duration_seconds: int,
@@ -179,9 +178,10 @@ def save_or_update_focus_session(
             if cursor.fetchone():
                 db.execute('''
                     UPDATE focus_sessions
-                    SET end_date = ?, end_time = ?, duration_seconds = ?
+                    SET subject_id = COALESCE(?, subject_id),
+                        end_date = ?, end_time = ?, duration_seconds = ?, timer_mode = COALESCE(?, timer_mode)
                     WHERE id = ?
-                ''', (end_date, end_time, duration_seconds, session_id))
+                ''', (subject_id, end_date, end_time, duration_seconds, timer_mode, session_id))
                 return session_id
 
         cursor = db.execute('''
@@ -207,7 +207,9 @@ def init_db():
                 is_active BOOLEAN NOT NULL DEFAULT 0,
                 list_order INTEGER NOT NULL,
                 weight INTEGER NOT NULL DEFAULT 1,
-                is_deleted BOOLEAN NOT NULL DEFAULT 0
+                is_deleted BOOLEAN NOT NULL DEFAULT 0,
+                tickets_remaining INTEGER NOT NULL DEFAULT 0,
+                last_picked_turn INTEGER NOT NULL DEFAULT 0
             )
         ''')
         
