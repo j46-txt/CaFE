@@ -220,22 +220,29 @@ def global_on_timer_end(mode: str):
                 if (!AudioCtx) return;
                 if (!window.cafeAudioCtx) window.cafeAudioCtx = new AudioCtx();
                 const ctx = window.cafeAudioCtx;
-                if (ctx.state === 'suspended') ctx.resume();
 
-                const now = ctx.currentTime;
-                const freqs = [523.25, 659.25, 784.00]; // C5, E5, G5
-                freqs.forEach((f, i) => {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(f, now + i * 0.12);
-                    gain.gain.setValueAtTime(0.15, now + i * 0.12);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.35);
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.start(now + i * 0.12);
-                    osc.stop(now + i * 0.12 + 0.35);
-                });
+                const playBeeps = () => {
+                    const now = ctx.currentTime;
+                    const freqs = [523.25, 659.25, 784.00]; // C5, E5, G5
+                    freqs.forEach((f, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(f, now + i * 0.12);
+                        gain.gain.setValueAtTime(0.15, now + i * 0.12);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.35);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + i * 0.12);
+                        osc.stop(now + i * 0.12 + 0.35);
+                    });
+                };
+
+                if (ctx.state === 'suspended') {
+                    ctx.resume().then(playBeeps).catch(function() {});
+                } else {
+                    playBeeps();
+                }
             } catch(e) {}
         })();
         """
@@ -248,22 +255,29 @@ def global_on_timer_end(mode: str):
                 if (!AudioCtx) return;
                 if (!window.cafeAudioCtx) window.cafeAudioCtx = new AudioCtx();
                 const ctx = window.cafeAudioCtx;
-                if (ctx.state === 'suspended') ctx.resume();
 
-                const now = ctx.currentTime;
-                const freqs = [784.00, 523.25]; // G5 -> C5
-                freqs.forEach((f, i) => {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(f, now + i * 0.15);
-                    gain.gain.setValueAtTime(0.2, now + i * 0.15);
-                    gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.15 + 0.4);
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-                    osc.start(now + i * 0.15);
-                    osc.stop(now + i * 0.15 + 0.4);
-                });
+                const playBeeps = () => {
+                    const now = ctx.currentTime;
+                    const freqs = [784.00, 523.25]; // G5 -> C5
+                    freqs.forEach((f, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(f, now + i * 0.15);
+                        gain.gain.setValueAtTime(0.2, now + i * 0.15);
+                        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.15 + 0.4);
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+                        osc.start(now + i * 0.15);
+                        osc.stop(now + i * 0.15 + 0.4);
+                    });
+                };
+
+                if (ctx.state === 'suspended') {
+                    ctx.resume().then(playBeeps).catch(function() {});
+                } else {
+                    playBeeps();
+                }
             } catch(e) {}
         })();
         """
@@ -645,15 +659,20 @@ async def build_ui():
     </style>
     <script>
         // AUTOMATIC AUDIO UNLOCK ON FIRST USER INTERACTION
-        document.addEventListener('click', function unlockAudio() {
-            if (!window.cafeAudioCtx) {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (AudioCtx) window.cafeAudioCtx = new AudioCtx();
-            }
-            if (window.cafeAudioCtx && window.cafeAudioCtx.state === 'suspended') {
-                window.cafeAudioCtx.resume();
-            }
-        }, { once: false });
+        function unlockCafeAudio() {
+            try {
+                if (!window.cafeAudioCtx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) window.cafeAudioCtx = new AudioCtx();
+                }
+                if (window.cafeAudioCtx && window.cafeAudioCtx.state === 'suspended') {
+                    window.cafeAudioCtx.resume();
+                }
+            } catch(e) {}
+        }
+        ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evt) {
+            document.addEventListener(evt, unlockCafeAudio, { passive: true });
+        });
     </script>
     ''')
 
