@@ -209,10 +209,17 @@ def global_on_session_complete(
 
     return new_session_id
 
+async def _safe_run_js(client, js_code: str):
+    """Safely executes JavaScript on a client without unhandled task exception warnings on disconnect."""
+    try:
+        await client.run_javascript(js_code, respond=False)
+    except Exception:
+        pass
+
 def global_on_timer_end(mode: str):
     # Safe non-blocking broadcast across all active user client connections using Web Audio API
     if mode == 'pomodoro':
-        # END OF FOCUS / START OF BREAK: Ascending major chord (C-E-G) in Sine wave (smooth/relaxing)
+        # END OF FOCUS / START OF BREAK: Ascending major chord (C5, E5, G5)
         js_code = """
         (function() {
             try {
@@ -222,32 +229,41 @@ def global_on_timer_end(mode: str):
                 const ctx = window.cafeAudioCtx;
 
                 const playBeeps = () => {
-                    const now = ctx.currentTime;
+                    const now = ctx.currentTime + 0.05; // 50ms buffer to prevent past-time scheduling
                     const freqs = [523.25, 659.25, 784.00]; // C5, E5, G5
                     freqs.forEach((f, i) => {
+                        const startTime = now + i * 0.15;
+                        const stopTime = startTime + 0.35;
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
+
                         osc.type = 'sine';
-                        osc.frequency.setValueAtTime(f, now + i * 0.12);
-                        gain.gain.setValueAtTime(0.15, now + i * 0.12);
-                        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.12 + 0.35);
+                        osc.frequency.setValueAtTime(f, startTime);
+
+                        gain.gain.setValueAtTime(0.001, startTime);
+                        gain.gain.linearRampToValueAtTime(0.2, startTime + 0.05);
+                        gain.gain.linearRampToValueAtTime(0.001, stopTime);
+
                         osc.connect(gain);
                         gain.connect(ctx.destination);
-                        osc.start(now + i * 0.12);
-                        osc.stop(now + i * 0.12 + 0.35);
+
+                        osc.start(startTime);
+                        osc.stop(stopTime);
                     });
                 };
 
                 if (ctx.state === 'suspended') {
-                    ctx.resume().then(playBeeps).catch(function() {});
+                    ctx.resume().then(playBeeps).catch(err => console.warn('[CaFE Audio] Resume blocked:', err));
                 } else {
                     playBeeps();
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.error('[CaFE Audio] Playback failed:', e);
+            }
         })();
         """
     elif mode == 'break':
-        # END OF BREAK / START OF FOCUS: Descending alert tone (G-C) in Triangle wave (sharp/clear)
+        # END OF BREAK / START OF FOCUS: Descending alert tone (G5 -> C5)
         js_code = """
         (function() {
             try {
@@ -257,28 +273,37 @@ def global_on_timer_end(mode: str):
                 const ctx = window.cafeAudioCtx;
 
                 const playBeeps = () => {
-                    const now = ctx.currentTime;
+                    const now = ctx.currentTime + 0.05; // 50ms buffer to prevent past-time scheduling
                     const freqs = [784.00, 523.25]; // G5 -> C5
                     freqs.forEach((f, i) => {
+                        const startTime = now + i * 0.18;
+                        const stopTime = startTime + 0.4;
                         const osc = ctx.createOscillator();
                         const gain = ctx.createGain();
+
                         osc.type = 'triangle';
-                        osc.frequency.setValueAtTime(f, now + i * 0.15);
-                        gain.gain.setValueAtTime(0.2, now + i * 0.15);
-                        gain.gain.exponentialRampToValueAtTime(0.0001, now + i * 0.15 + 0.4);
+                        osc.frequency.setValueAtTime(f, startTime);
+
+                        gain.gain.setValueAtTime(0.001, startTime);
+                        gain.gain.linearRampToValueAtTime(0.25, startTime + 0.05);
+                        gain.gain.linearRampToValueAtTime(0.001, stopTime);
+
                         osc.connect(gain);
                         gain.connect(ctx.destination);
-                        osc.start(now + i * 0.15);
-                        osc.stop(now + i * 0.15 + 0.4);
+
+                        osc.start(startTime);
+                        osc.stop(stopTime);
                     });
                 };
 
                 if (ctx.state === 'suspended') {
-                    ctx.resume().then(playBeeps).catch(function() {});
+                    ctx.resume().then(playBeeps).catch(err => console.warn('[CaFE Audio] Resume blocked:', err));
                 } else {
                     playBeeps();
                 }
-            } catch(e) {}
+            } catch(e) {
+                console.error('[CaFE Audio] Playback failed:', e);
+            }
         })();
         """
     else:
@@ -286,10 +311,7 @@ def global_on_timer_end(mode: str):
 
     if js_code:
         for client in list(active_clients):
-            try:
-                client.run_javascript(js_code, respond=False)
-            except Exception:
-                pass
+            asyncio.create_task(_safe_run_js(client, js_code))
 
 focus_timer = FocusTimer(
     on_tick=lambda: None,
@@ -671,7 +693,7 @@ async def build_ui():
             } catch(e) {}
         }
         ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evt) {
-            document.addEventListener(evt, unlockCafeAudio, { passive: true });
+            document.addEventListener(evt, unlockCafeAudio, { once: true, passive: true });
         });
     </script>
     ''')
@@ -897,7 +919,7 @@ async def build_ui():
                 logs = [dict(r) for r in rows]
             return summary, logs
 
-        summary_rows, rows = await asyncio.get_running_loop().run_in_executor(None, fetch_history_data)
+        summary_rows, rows = await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, fetch_history_data)
 
         content_container.clear()
         with content_container:
@@ -1015,22 +1037,24 @@ async def build_ui():
         is_stopwatch = focus_timer.state.mode == 'stopwatch'
         is_break = focus_timer.state.mode == 'break'
 
-        if focus_timer.state.mode == 'pomodoro':
-            update_text(timer_status_label, t('main_timer_focus'))
-            timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 3px 5px 2px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
-            update_vis(timer_status_label, True)
-            mode_label = t('main_timer_focus')
-        elif focus_timer.state.mode == 'break':
-            update_text(timer_status_label, t('main_timer_break'))
-            timer_status_label.style('color: #a3b18a; background-color: rgba(163, 177, 138, 0.06); border: 0.5px solid rgba(163, 177, 138, 0.2); padding: 3px 5px 2px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
-            update_vis(timer_status_label, True)
-            mode_label = t('main_timer_break')
-        else:
-            update_vis(timer_status_label, False)
-            mode_label = t('main_stopwatch')
+        # Guard timer status label styling to avoid DOM style churn on every second tick
+        last_mode = getattr(client, '_last_timer_mode', None)
+        if last_mode != focus_timer.state.mode:
+            client._last_timer_mode = focus_timer.state.mode
+            if focus_timer.state.mode == 'pomodoro':
+                update_text(timer_status_label, t('main_timer_focus'))
+                timer_status_label.style('color: #de9c52; background-color: rgba(222, 156, 82, 0.06); border: 0.5px solid #de9c52; padding: 3px 5px 2px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
+                update_vis(timer_status_label, True)
+            elif focus_timer.state.mode == 'break':
+                update_text(timer_status_label, t('main_timer_break'))
+                timer_status_label.style('color: #a3b18a; background-color: rgba(163, 177, 138, 0.06); border: 0.5px solid rgba(163, 177, 138, 0.2); padding: 3px 5px 2px 7px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; display: inline-flex; align-items: center; justify-content: center; border-radius: 2px; line-height: 1; height: 18px;')
+                update_vis(timer_status_label, True)
+            else:
+                update_vis(timer_status_label, False)
 
         update_text(timer_label, focus_timer.display_time)
         
+        mode_label = t('main_timer_focus') if focus_timer.state.mode == 'pomodoro' else (t('main_timer_break') if focus_timer.state.mode == 'break' else t('main_stopwatch'))
         new_page_title = f"{focus_timer.display_time} · {mode_label}"
         if getattr(client, '_last_page_title', None) != new_page_title:
             ui.page_title(new_page_title)
@@ -1040,13 +1064,17 @@ async def build_ui():
         update_vis(reset_btn, is_pomo_mode and status != 'idle')
         update_vis(stop_btn, is_stopwatch and status != 'idle')
 
+        # Guard toggle buttons styling to prevent unnecessary WebSocket frame mutations
         is_pomo_active = focus_timer.state.mode in ('pomodoro', 'break')
-        if is_pomo_active:
-            pomo_toggle_btn.style('background-color: #4e3629 !important; color: #ebdcd0 !important; border: 1px solid #4e3629 !important;')
-            stopwatch_toggle_btn.style('background-color: transparent !important; color: #59514a !important; border: 1px solid #16100d !important;')
-        else:
-            pomo_toggle_btn.style('background-color: transparent !important; color: #59514a !important; border: 1px solid #16100d !important;')
-            stopwatch_toggle_btn.style('background-color: #4e3629 !important; color: #ebdcd0 !important; border: 1px solid #4e3629 !important;')
+        last_pomo_active = getattr(client, '_last_pomo_active', None)
+        if last_pomo_active != is_pomo_active:
+            client._last_pomo_active = is_pomo_active
+            if is_pomo_active:
+                pomo_toggle_btn.style('background-color: #4e3629 !important; color: #ebdcd0 !important; border: 1px solid #4e3629 !important;')
+                stopwatch_toggle_btn.style('background-color: transparent !important; color: #59514a !important; border: 1px solid #16100d !important;')
+            else:
+                pomo_toggle_btn.style('background-color: transparent !important; color: #59514a !important; border: 1px solid #16100d !important;')
+                stopwatch_toggle_btn.style('background-color: #4e3629 !important; color: #ebdcd0 !important; border: 1px solid #4e3629 !important;')
 
         if status == 'idle':
             pomo_toggle_btn.enable()
