@@ -225,40 +225,30 @@ def global_on_timer_end(mode: str):
             try {
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
                 if (!AudioCtx) return;
-                if (!window.cafeAudioCtx) window.cafeAudioCtx = new AudioCtx();
-                const ctx = window.cafeAudioCtx;
-
-                const playBeeps = () => {
-                    const now = ctx.currentTime + 0.05; // 50ms buffer to prevent past-time scheduling
-                    const freqs = [523.25, 659.25, 784.00]; // C5, E5, G5
-                    freqs.forEach((f, i) => {
-                        const startTime = now + i * 0.15;
-                        const stopTime = startTime + 0.35;
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-
-                        osc.type = 'sine';
-                        osc.frequency.setValueAtTime(f, startTime);
-
-                        gain.gain.setValueAtTime(0.001, startTime);
-                        gain.gain.linearRampToValueAtTime(0.2, startTime + 0.05);
-                        gain.gain.linearRampToValueAtTime(0.001, stopTime);
-
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-
-                        osc.start(startTime);
-                        osc.stop(stopTime);
-                    });
-                };
-
+                const ctx = new AudioCtx();
                 if (ctx.state === 'suspended') {
-                    ctx.resume().then(playBeeps).catch(err => console.warn('[CaFE Audio] Resume blocked:', err));
-                } else {
-                    playBeeps();
+                    ctx.resume();
                 }
+
+                const freqs = [523.25, 659.25, 784.00]; // C5, E5, G5
+                freqs.forEach((f, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = f;
+                    gain.gain.value = 0.2;
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    const startTime = ctx.currentTime + i * 0.18;
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.15);
+                });
+
+                setTimeout(() => { try { ctx.close(); } catch(e){} }, 1200);
             } catch(e) {
-                console.error('[CaFE Audio] Playback failed:', e);
+                console.error('[CaFE Audio] Playback error:', e);
             }
         })();
         """
@@ -269,40 +259,30 @@ def global_on_timer_end(mode: str):
             try {
                 const AudioCtx = window.AudioContext || window.webkitAudioContext;
                 if (!AudioCtx) return;
-                if (!window.cafeAudioCtx) window.cafeAudioCtx = new AudioCtx();
-                const ctx = window.cafeAudioCtx;
-
-                const playBeeps = () => {
-                    const now = ctx.currentTime + 0.05; // 50ms buffer to prevent past-time scheduling
-                    const freqs = [784.00, 523.25]; // G5 -> C5
-                    freqs.forEach((f, i) => {
-                        const startTime = now + i * 0.18;
-                        const stopTime = startTime + 0.4;
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-
-                        osc.type = 'triangle';
-                        osc.frequency.setValueAtTime(f, startTime);
-
-                        gain.gain.setValueAtTime(0.001, startTime);
-                        gain.gain.linearRampToValueAtTime(0.25, startTime + 0.05);
-                        gain.gain.linearRampToValueAtTime(0.001, stopTime);
-
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-
-                        osc.start(startTime);
-                        osc.stop(stopTime);
-                    });
-                };
-
+                const ctx = new AudioCtx();
                 if (ctx.state === 'suspended') {
-                    ctx.resume().then(playBeeps).catch(err => console.warn('[CaFE Audio] Resume blocked:', err));
-                } else {
-                    playBeeps();
+                    ctx.resume();
                 }
+
+                const freqs = [784.00, 523.25]; // G5 -> C5
+                freqs.forEach((f, i) => {
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = f;
+                    gain.gain.value = 0.25;
+
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+
+                    const startTime = ctx.currentTime + i * 0.2;
+                    osc.start(startTime);
+                    osc.stop(startTime + 0.18);
+                });
+
+                setTimeout(() => { try { ctx.close(); } catch(e){} }, 1200);
             } catch(e) {
-                console.error('[CaFE Audio] Playback failed:', e);
+                console.error('[CaFE Audio] Playback error:', e);
             }
         })();
         """
@@ -683,13 +663,20 @@ async def build_ui():
         // AUTOMATIC AUDIO UNLOCK ON FIRST USER INTERACTION
         function unlockCafeAudio() {
             try {
-                if (!window.cafeAudioCtx) {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (AudioCtx) window.cafeAudioCtx = new AudioCtx();
+                const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                if (!AudioCtx) return;
+                const dummyCtx = new AudioCtx();
+                if (dummyCtx.state === 'suspended') {
+                    dummyCtx.resume();
                 }
-                if (window.cafeAudioCtx && window.cafeAudioCtx.state === 'suspended') {
-                    window.cafeAudioCtx.resume();
-                }
+                const osc = dummyCtx.createOscillator();
+                const gain = dummyCtx.createGain();
+                gain.gain.value = 0.001;
+                osc.connect(gain);
+                gain.connect(dummyCtx.destination);
+                osc.start();
+                osc.stop(dummyCtx.currentTime + 0.01);
+                setTimeout(function() { try { dummyCtx.close(); } catch(e){} }, 100);
             } catch(e) {}
         }
         ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evt) {
