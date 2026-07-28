@@ -218,74 +218,8 @@ async def _safe_run_js(client, js_code: str):
 
 def global_on_timer_end(mode: str):
     # Safe non-blocking broadcast across all active user client connections using Web Audio API
-    if mode == 'pomodoro':
-        # END OF FOCUS / START OF BREAK: Ascending major chord (C5, E5, G5)
-        js_code = """
-        (function() {
-            try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (!AudioCtx) return;
-                const ctx = new AudioCtx();
-                if (ctx.state === 'suspended') {
-                    ctx.resume();
-                }
-
-                const freqs = [523.25, 659.25, 784.00]; // C5, E5, G5
-                freqs.forEach((f, i) => {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.value = f;
-                    gain.gain.value = 0.2;
-
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-
-                    const startTime = ctx.currentTime + i * 0.18;
-                    osc.start(startTime);
-                    osc.stop(startTime + 0.15);
-                });
-
-                setTimeout(() => { try { ctx.close(); } catch(e){} }, 1200);
-            } catch(e) {
-                console.error('[CaFE Audio] Playback error:', e);
-            }
-        })();
-        """
-    elif mode == 'break':
-        # END OF BREAK / START OF FOCUS: Descending alert tone (G5 -> C5)
-        js_code = """
-        (function() {
-            try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (!AudioCtx) return;
-                const ctx = new AudioCtx();
-                if (ctx.state === 'suspended') {
-                    ctx.resume();
-                }
-
-                const freqs = [784.00, 523.25]; // G5 -> C5
-                freqs.forEach((f, i) => {
-                    const osc = ctx.createOscillator();
-                    const gain = ctx.createGain();
-                    osc.type = 'triangle';
-                    osc.frequency.value = f;
-                    gain.gain.value = 0.25;
-
-                    osc.connect(gain);
-                    gain.connect(ctx.destination);
-
-                    const startTime = ctx.currentTime + i * 0.2;
-                    osc.start(startTime);
-                    osc.stop(startTime + 0.18);
-                });
-
-                setTimeout(() => { try { ctx.close(); } catch(e){} }, 1200);
-            } catch(e) {
-                console.error('[CaFE Audio] Playback error:', e);
-            }
-        })();
-        """
+    if mode in ('pomodoro', 'break'):
+        js_code = f"if (typeof window.playCafeAlert === 'function') window.playCafeAlert('{mode}');"
     else:
         js_code = ""
 
@@ -660,28 +594,85 @@ async def build_ui():
         }
     </style>
     <script>
-        // AUTOMATIC AUDIO UNLOCK ON FIRST USER INTERACTION
-        function unlockCafeAudio() {
+        // AUTOMATIC AUDIO UNLOCK ON FIRST USER INTERACTION (PERSISTENT CONTEXT)
+        window.cafeAudioCtx = null;
+        
+        function initCafeAudio() {
             try {
-                const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                if (!AudioCtx) return;
-                const dummyCtx = new AudioCtx();
-                if (dummyCtx.state === 'suspended') {
-                    dummyCtx.resume();
+                if (!window.cafeAudioCtx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) window.cafeAudioCtx = new AudioCtx();
                 }
-                const osc = dummyCtx.createOscillator();
-                const gain = dummyCtx.createGain();
-                gain.gain.value = 0.001;
-                osc.connect(gain);
-                gain.connect(dummyCtx.destination);
-                osc.start();
-                osc.stop(dummyCtx.currentTime + 0.01);
-                setTimeout(function() { try { dummyCtx.close(); } catch(e){} }, 100);
-            } catch(e) {}
+                if (window.cafeAudioCtx && window.cafeAudioCtx.state === 'suspended') {
+                    window.cafeAudioCtx.resume();
+                    const osc = window.cafeAudioCtx.createOscillator();
+                    const gain = window.cafeAudioCtx.createGain();
+                    gain.gain.value = 0.001;
+                    osc.connect(gain);
+                    gain.connect(window.cafeAudioCtx.destination);
+                    osc.start();
+                    osc.stop(window.cafeAudioCtx.currentTime + 0.01);
+                }
+            } catch(e) {
+                console.error('[CaFE Audio] Initialization error:', e);
+            }
         }
+        
         ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evt) {
-            document.addEventListener(evt, unlockCafeAudio, { once: true, passive: true });
+            document.addEventListener(evt, initCafeAudio, { once: true, passive: true });
         });
+
+        // CLIENT-SIDE ALERT SYNTHESIZER
+        window.playCafeAlert = function(mode) {
+            try {
+                if (!window.cafeAudioCtx) return;
+                
+                // Final safety check to ensure background tab policy compliance
+                if (window.cafeAudioCtx.state === 'suspended') {
+                    window.cafeAudioCtx.resume();
+                }
+                
+                const ctx = window.cafeAudioCtx;
+                
+                if (mode === 'pomodoro') {
+                    // END OF FOCUS / START OF BREAK: Ascending major chord (C5, E5, G5)
+                    const freqs = [523.25, 659.25, 784.00];
+                    freqs.forEach((f, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.value = f;
+                        gain.gain.value = 0.2;
+
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+
+                        const startTime = ctx.currentTime + i * 0.18;
+                        osc.start(startTime);
+                        osc.stop(startTime + 0.15);
+                    });
+                } else if (mode === 'break') {
+                    // END OF BREAK / START OF FOCUS: Descending alert tone (G5 -> C5)
+                    const freqs = [784.00, 523.25];
+                    freqs.forEach((f, i) => {
+                        const osc = ctx.createOscillator();
+                        const gain = ctx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.value = f;
+                        gain.gain.value = 0.25;
+
+                        osc.connect(gain);
+                        gain.connect(ctx.destination);
+
+                        const startTime = ctx.currentTime + i * 0.2;
+                        osc.start(startTime);
+                        osc.stop(startTime + 0.18);
+                    });
+                }
+            } catch(e) {
+                console.error('[CaFE Audio] Playback error:', e);
+            }
+        };
     </script>
     ''')
 
