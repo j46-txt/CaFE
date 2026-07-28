@@ -4,6 +4,7 @@
 
 <img width="500" alt="image" src="https://github.com/user-attachments/assets/6c8b6412-0deb-484f-a130-61ad448d8c07" />
 
+
 Using the built-in timer automatically records your activity, logging the date, weekday, and focus duration to help monitor your habits.
 
 Once configured, it algorithmically rotates user-defined suggestions (which are also logged) in either **Daily Automatic Mode** (rotating once a day on launch) or **Manual Session-Based Mode** (retaining the current suggestion until manually advanced). This eliminates decision fatigue and makes it ideal for repeatedly studying or working on a predefined set of subjects.
