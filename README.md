@@ -8,6 +8,9 @@ Once configured, it algorithmically rotates user-defined suggestions (which are 
 
 Motivation and consistency are supported by tracking a weekly goal alongside a dashboard displaying a rolling "pace" metric (hours/week), total focused time, and days invested.
 
+<img width="500" alt="image" src="https://github.com/user-attachments/assets/6c8b6412-0deb-484f-a130-61ad448d8c07" />
+
+
 ## Features
 
 * Custom pomodoro timer with skippable breaks
