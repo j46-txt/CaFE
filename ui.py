@@ -217,13 +217,9 @@ async def _safe_run_js(client, js_code: str):
         pass
 
 def global_on_timer_end(mode: str):
-    # Safe non-blocking broadcast across all active user client connections using Web Audio API
+    # Safe non-blocking broadcast across all active user client connections using HTML5 Audio & Native Desktop Alerts
     if mode in ('pomodoro', 'break'):
         js_code = f"if (typeof window.playCafeAlert === 'function') window.playCafeAlert('{mode}');"
-    else:
-        js_code = ""
-
-    if js_code:
         for client in list(active_clients):
             asyncio.create_task(_safe_run_js(client, js_code))
 
@@ -594,85 +590,153 @@ async def build_ui():
         }
     </style>
     <script>
-        // AUTOMATIC AUDIO UNLOCK ON FIRST USER INTERACTION (PERSISTENT CONTEXT)
-        window.cafeAudioCtx = null;
-        
-        function initCafeAudio() {
-            try {
-                if (!window.cafeAudioCtx) {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (AudioCtx) window.cafeAudioCtx = new AudioCtx();
+        // CLIENT-SIDE AUDIO SYNTHESIS & HTML5 PRE-AUTHORIZATION ENGINE
+        (function() {
+            window.lastCafeAlertTime = 0;
+
+            function generateChimeWavUrl(notes) {
+                const sampleRate = 22050;
+                let totalSamples = 0;
+                notes.forEach(n => totalSamples += Math.floor(sampleRate * (n.duration + n.delay)));
+                const buffer = new Float32Array(totalSamples);
+                let offset = 0;
+                notes.forEach(n => {
+                    const delayCount = Math.floor(sampleRate * n.delay);
+                    offset += delayCount;
+                    const count = Math.floor(sampleRate * n.duration);
+                    for (let i = 0; i < count; i++) {
+                        const t = i / sampleRate;
+                        const fade = Math.min(i / (sampleRate * 0.01), (count - i) / (sampleRate * 0.01), 1.0);
+                        buffer[offset + i] = 0.3 * Math.sin(2 * Math.PI * n.freq * t) * Math.max(0, fade);
+                    }
+                    offset += count;
+                });
+
+                const wavBuffer = new ArrayBuffer(44 + buffer.length * 2);
+                const view = new DataView(wavBuffer);
+                function writeStr(v, o, s) { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); }
+                
+                writeStr(view, 0, 'RIFF');
+                view.setUint32(4, 36 + buffer.length * 2, true);
+                writeStr(view, 8, 'WAVE');
+                writeStr(view, 12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true); // PCM
+                view.setUint16(22, 1, true); // Mono
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * 2, true);
+                view.setUint16(32, 2, true);
+                view.setUint16(34, 16, true);
+                writeStr(view, 36, 'data');
+                view.setUint32(40, buffer.length * 2, true);
+
+                let ptr = 44;
+                for (let i = 0; i < buffer.length; i++) {
+                    let s = Math.max(-1, Math.min(1, buffer[i]));
+                    view.setInt16(ptr, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+                    ptr += 2;
                 }
-                if (window.cafeAudioCtx && window.cafeAudioCtx.state === 'suspended') {
-                    window.cafeAudioCtx.resume();
-                    const osc = window.cafeAudioCtx.createOscillator();
-                    const gain = window.cafeAudioCtx.createGain();
-                    gain.gain.value = 0.001;
-                    osc.connect(gain);
-                    gain.connect(window.cafeAudioCtx.destination);
-                    osc.start();
-                    osc.stop(window.cafeAudioCtx.currentTime + 0.01);
-                }
-            } catch(e) {
-                console.error('[CaFE Audio] Initialization error:', e);
+
+                const blob = new Blob([view], { type: 'audio/wav' });
+                return URL.createObjectURL(blob);
             }
-        }
-        
-        ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evt) {
-            document.addEventListener(evt, initCafeAudio, { once: true, passive: true });
-        });
 
-        // CLIENT-SIDE ALERT SYNTHESIZER
-        window.playCafeAlert = function(mode) {
-            try {
-                if (!window.cafeAudioCtx) return;
-                
-                // Final safety check to ensure background tab policy compliance
-                if (window.cafeAudioCtx.state === 'suspended') {
-                    window.cafeAudioCtx.resume();
-                }
-                
-                const ctx = window.cafeAudioCtx;
-                
-                if (mode === 'pomodoro') {
-                    // END OF FOCUS / START OF BREAK: Ascending major chord (C5, E5, G5)
-                    const freqs = [523.25, 659.25, 784.00];
-                    freqs.forEach((f, i) => {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = 'sine';
-                        osc.frequency.value = f;
-                        gain.gain.value = 0.2;
+            function initAudioElements() {
+                if (document.getElementById('cafe-audio-pomo')) return;
 
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
+                const focusUrl = generateChimeWavUrl([
+                    { freq: 523.25, duration: 0.15, delay: 0.0 },
+                    { freq: 659.25, duration: 0.15, delay: 0.03 },
+                    { freq: 784.00, duration: 0.25, delay: 0.03 }
+                ]);
+                const breakUrl = generateChimeWavUrl([
+                    { freq: 784.00, duration: 0.18, delay: 0.0 },
+                    { freq: 523.25, duration: 0.25, delay: 0.05 }
+                ]);
 
-                        const startTime = ctx.currentTime + i * 0.18;
-                        osc.start(startTime);
-                        osc.stop(startTime + 0.15);
-                    });
-                } else if (mode === 'break') {
-                    // END OF BREAK / START OF FOCUS: Descending alert tone (G5 -> C5)
-                    const freqs = [784.00, 523.25];
-                    freqs.forEach((f, i) => {
-                        const osc = ctx.createOscillator();
-                        const gain = ctx.createGain();
-                        osc.type = 'triangle';
-                        osc.frequency.value = f;
-                        gain.gain.value = 0.25;
+                const audioFocus = document.createElement('audio');
+                audioFocus.id = 'cafe-audio-pomo';
+                audioFocus.preload = 'auto';
+                audioFocus.src = focusUrl;
+                document.body.appendChild(audioFocus);
 
-                        osc.connect(gain);
-                        gain.connect(ctx.destination);
-
-                        const startTime = ctx.currentTime + i * 0.2;
-                        osc.start(startTime);
-                        osc.stop(startTime + 0.18);
-                    });
-                }
-            } catch(e) {
-                console.error('[CaFE Audio] Playback error:', e);
+                const audioBreak = document.createElement('audio');
+                audioBreak.id = 'cafe-audio-break';
+                audioBreak.preload = 'auto';
+                audioBreak.src = breakUrl;
+                document.body.appendChild(audioBreak);
             }
-        };
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initAudioElements);
+            } else {
+                initAudioElements();
+            }
+
+            // MICROSECOND PLAY/PAUSE USER GESTURE PRE-AUTHORIZATION
+            function unlockCafeAudio() {
+                initAudioElements();
+                const a1 = document.getElementById('cafe-audio-pomo');
+                const a2 = document.getElementById('cafe-audio-break');
+                if (a1) { a1.play().then(() => { a1.pause(); a1.currentTime = 0; }).catch(() => {}); }
+                if (a2) { a2.play().then(() => { a2.pause(); a2.currentTime = 0; }).catch(() => {}); }
+                
+                if ("Notification" in window && Notification.permission === "default") {
+                    Notification.requestPermission().catch(() => {});
+                }
+            }
+
+            ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evt) {
+                document.addEventListener(evt, unlockCafeAudio, { once: true, passive: true });
+            });
+
+            // SINGLE-SHOT AUDIO & SUBTLE SILENT DESKTOP ALERT TRIGGER
+            window.playCafeAlert = function(mode) {
+                const now = Date.now();
+                if (now - window.lastCafeAlertTime < 1500) return; // Prevent duplicate triggers
+                window.lastCafeAlertTime = now;
+
+                try {
+                    const audioId = (mode === 'pomodoro') ? 'cafe-audio-pomo' : 'cafe-audio-break';
+                    const audioElem = document.getElementById(audioId);
+                    if (audioElem) {
+                        audioElem.currentTime = 0;
+                        audioElem.play().catch(function(e) {
+                            console.warn('[CaFE Audio] Playback blocked:', e);
+                        });
+                    }
+
+                    // SUBTLE SILENT DESKTOP NOTIFICATION (NO OS CHIME, AUTO-DISMISS)
+                    if ("Notification" in window && Notification.permission === "granted") {
+                        const isPt = document.body && (
+                            document.body.innerText.includes('Bom dia') ||
+                            document.body.innerText.includes('Boa tarde') ||
+                            document.body.innerText.includes('Boa noite') ||
+                            document.body.innerText.includes('Pausa')
+                        );
+                        
+                        let bodyText = "";
+                        if (mode === 'pomodoro') {
+                            bodyText = isPt ? "Pausa iniciada" : "Break started";
+                        } else if (mode === 'break') {
+                            bodyText = isPt ? "Foco iniciado" : "Focus started";
+                        }
+
+                        if (bodyText) {
+                            const notif = new Notification("CaFE", {
+                                body: bodyText,
+                                silent: true,
+                                tag: 'cafe-timer-alert',
+                                requireInteraction: false
+                            });
+                            setTimeout(function() { notif.close(); }, 3000);
+                        }
+                    }
+                } catch(e) {
+                    console.error('[CaFE Alert Error]:', e);
+                }
+            };
+        })();
     </script>
     ''')
 
