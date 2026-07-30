@@ -705,6 +705,13 @@ async def build_ui():
     </script>
     ''')
 
+    # Pre-declare singleton dialogs to avoid layout stacking loops
+    settings_dialog = ui.dialog().props('transition-show=none transition-hide=none')
+    suggestions_dialog = ui.dialog().props('transition-show=none transition-hide=none')
+    help_dialog = ui.dialog().props('transition-show=none transition-hide=none')
+    history_dialog = ui.dialog().props('transition-show=none transition-hide=none')
+    confirm_dialog = ui.dialog().props('transition-show=none transition-hide=none')
+
     def get_greeting() -> str:
         hour = datetime.datetime.now(LOCAL_TZ).hour
         if 5 <= hour < 12:
@@ -715,7 +722,8 @@ async def build_ui():
             return t('greeting_evening')
 
     def open_settings_panel():
-        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-80 rounded-none p-4 mono-card'):
+        settings_dialog.clear()
+        with settings_dialog, ui.card().classes('w-80 rounded-none p-4 mono-card'):
             ui.label(t('config_title')).classes('text-xs frappe-light uppercase tracking-wider mb-4 w-full')
             
             with _CACHE_LOCK:
@@ -744,7 +752,8 @@ async def build_ui():
             ).classes('w-full mb-4')
             
             def confirm_reset():
-                with ui.dialog().props('transition-show=none transition-hide=none') as confirm_dialog, ui.card().classes('w-72 rounded-none p-4 mono-card'):
+                confirm_dialog.clear()
+                with confirm_dialog, ui.card().classes('w-72 rounded-none p-4 mono-card'):
                     ui.label(t('config_confirm_title')).classes('text-xs frappe-light uppercase tracking-wider mb-1')
                     ui.label(t('config_confirm_desc')).classes('text-xs frappe-dark mb-4')
                     with ui.row().classes('w-full justify-end gap-2'):
@@ -757,7 +766,7 @@ async def build_ui():
                             await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_delete)
                             update_display()
                             confirm_dialog.close()
-                            dialog.close()
+                            settings_dialog.close()
                             ui.notify(t('config_notify_wiped'), type='warning')
                         ui.button(t('config_reset'), on_click=perform_reset).classes('mono-btn text-xs border-red-900 text-red-500')
                 confirm_dialog.open()
@@ -792,13 +801,14 @@ async def build_ui():
                 await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_save)
                 update_language_labels()  # Force update static layouts
                 update_display()
-                dialog.close()
+                settings_dialog.close()
 
             ui.button(t('config_save'), on_click=save_settings).classes('w-full mono-btn mb-1')
-        dialog.open()
+        settings_dialog.open()
 
     async def open_suggestions_panel():
-        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[360px] rounded-none p-4 mono-card'):
+        suggestions_dialog.clear()
+        with suggestions_dialog, ui.card().classes('w-[360px] rounded-none p-4 mono-card'):
             ui.label(t('edit_title')).classes('text-xs frappe-light uppercase tracking-wider mb-3')
             
             with ui.row().classes('w-full items-center gap-1 mb-3 pb-3 mono-divider'):
@@ -871,12 +881,13 @@ async def build_ui():
                             ui.button(icon='delete', on_click=lambda e, sid=sub.id: trigger_delete(sid)).props('flat dense size=sm color=grey no-ripple')
                 subject_list_container.update()
 
-            ui.button(t('edit_close'), on_click=dialog.close).classes('w-full mono-btn mt-1')
+            ui.button(t('edit_close'), on_click=suggestions_dialog.close).classes('w-full mono-btn mt-1')
             await rebuild_management_view()
-        dialog.open()
+        suggestions_dialog.open()
 
     def open_help_panel():
-        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[420px] rounded-none p-4 mono-card'):
+        help_dialog.clear()
+        with help_dialog, ui.card().classes('w-[420px] rounded-none p-4 mono-card'):
             ui.label(t('help_title')).classes('text-xs frappe-light uppercase tracking-wider mb-3 w-full pb-1 mono-divider')
             
             ui.html('<div class="text-xs mb-3" style="color: #59514a !important; text-transform: none !important;"><span style="color: #4e3629 !important; font-weight: bold;">C</span>onsistency <span style="color: #4e3629 !important; font-weight: bold;">a</span>nd <span style="color: #4e3629 !important; font-weight: bold;">F</span>ocus <span style="color: #4e3629 !important; font-weight: bold;">E</span>ngine</div>')
@@ -890,11 +901,12 @@ async def build_ui():
                 </a>
                 ''')
             
-            ui.button(t('help_close'), on_click=dialog.close).classes('w-full mono-btn mt-4 text-xs')
-        dialog.open()
+            ui.button(t('help_close'), on_click=help_dialog.close).classes('w-full mono-btn mt-4 text-xs')
+        help_dialog.open()
 
     async def open_history_panel():
-        with ui.dialog().props('transition-show=none transition-hide=none') as dialog, ui.card().classes('w-[480px] rounded-none p-4 mono-card'):
+        history_dialog.clear()
+        with history_dialog, ui.card().classes('w-[480px] rounded-none p-4 mono-card'):
             with ui.row().classes('w-full justify-between items-center mb-3 pb-1 mono-divider'):
                 ui.label(t('log_title')).classes('text-xs frappe-light uppercase tracking-wider')
                 ui.button(t('log_export'), on_click=download_csv_log).classes('mono-btn').style('font-size: 10px !important; padding: 2px 8px !important; height: auto; min-height: 0;')
@@ -903,9 +915,9 @@ async def build_ui():
             with content_container:
                 ui.spinner('dots', size='md', color='#59514a').classes('self-center mt-4 mb-4')
 
-            ui.button(t('log_close'), on_click=dialog.close).classes('w-full mono-btn text-xs mt-2')
+            ui.button(t('log_close'), on_click=history_dialog.close).classes('w-full mono-btn text-xs mt-2')
 
-        dialog.open()
+        history_dialog.open()
 
         def fetch_history_data():
             with database.get_db() as db:
