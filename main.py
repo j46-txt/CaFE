@@ -1,4 +1,3 @@
-# main.py
 # -*- coding: utf-8 -*-
 import os
 import asyncio
@@ -26,9 +25,10 @@ async def initialize_application_state():
     print("[Lifecycle] System startup sequence completed successfully.")
 
 @app.on_shutdown
-def flush_system_queues():
+async def flush_system_queues():
     print("[Lifecycle] Stage 5: Flushing background queues to cloud storage...")
-    database.BACKUP_QUEUE.join()
+    # FIX: Await the queue join operation in a separate thread to prevent blocking the ASGI event loop
+    await asyncio.to_thread(database.BACKUP_QUEUE.join)
 
 @ui.page('/')
 async def main_page(key: str = None):
