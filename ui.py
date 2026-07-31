@@ -212,9 +212,9 @@ def global_on_session_complete(
 async def _safe_run_js(client, js_code: str):
     """Safely executes JavaScript on a client without unhandled task exception warnings on disconnect."""
     try:
-        await client.run_javascript(js_code, respond=False)
-    except Exception:
-        pass
+        await client.run_javascript(js_code)
+    except Exception as e:
+        print(f"[JS Execution Error]: {e}")
 
 def global_on_timer_end(mode: str):
     # Broadcast sound & alert trigger across active user client connections with exact language context
@@ -597,79 +597,84 @@ async def build_ui():
             window.cafeAudioCtx = null;
             let pomoAudio = null;
             let breakAudio = null;
-            let audioUnlocked = false;
 
             // Generate clean PCM WAV Data URIs on the client to guarantee immediate HTML5 Audio playback
             function createWavDataUri(type) {
-                const sampleRate = 22050;
-                let tones = [];
-                if (type === 'pomodoro') {
-                    // Ascending chord: C5 (523.25Hz), E5 (659.25Hz), G5 (784.00Hz)
-                    tones = [
-                        { f: 523.25, start: 0.00, dur: 0.15 },
-                        { f: 659.25, start: 0.18, dur: 0.15 },
-                        { f: 784.00, start: 0.36, dur: 0.20 }
-                    ];
-                } else {
-                    // Descending alert: G5 (784.00Hz), C5 (523.25Hz)
-                    tones = [
-                        { f: 784.00, start: 0.00, dur: 0.18 },
-                        { f: 523.25, start: 0.20, dur: 0.22 }
-                    ];
-                }
+                try {
+                    const sampleRate = 22050;
+                    let tones = [];
+                    if (type === 'pomodoro') {
+                        // Ascending chord: C5 (523.25Hz), E5 (659.25Hz), G5 (784.00Hz)
+                        tones = [
+                            { f: 523.25, start: 0.00, dur: 0.15 },
+                            { f: 659.25, start: 0.18, dur: 0.15 },
+                            { f: 784.00, start: 0.36, dur: 0.20 }
+                        ];
+                    } else {
+                        // Descending alert: G5 (784.00Hz), C5 (523.25Hz)
+                        tones = [
+                            { f: 784.00, start: 0.00, dur: 0.18 },
+                            { f: 523.25, start: 0.20, dur: 0.22 }
+                        ];
+                    }
 
-                const totalDuration = tones[tones.length - 1].start + tones[tones.length - 1].dur + 0.05;
-                const numSamples = Math.floor(sampleRate * totalDuration);
-                const buffer = new Int16Array(numSamples);
+                    const totalDuration = tones[tones.length - 1].start + tones[tones.length - 1].dur + 0.05;
+                    const numSamples = Math.floor(sampleRate * totalDuration);
+                    const buffer = new Int16Array(numSamples);
 
-                tones.forEach(t => {
-                    const startSample = Math.floor(t.start * sampleRate);
-                    const durSamples = Math.floor(t.dur * sampleRate);
-                    for (let i = 0; i < durSamples; i++) {
-                        const idx = startSample + i;
-                        if (idx < numSamples) {
-                            const time = i / sampleRate;
-                            const env = Math.sin((i / durSamples) * Math.PI);
-                            const val = Math.sin(2 * Math.PI * t.f * time) * env * 0.3;
-                            buffer[idx] += Math.floor(val * 32767);
+                    tones.forEach(t => {
+                        const startSample = Math.floor(t.start * sampleRate);
+                        const durSamples = Math.floor(t.dur * sampleRate);
+                        for (let i = 0; i < durSamples; i++) {
+                            const idx = startSample + i;
+                            if (idx < numSamples) {
+                                const time = i / sampleRate;
+                                const env = Math.sin((i / durSamples) * Math.PI);
+                                const val = Math.sin(2 * Math.PI * t.f * time) * env * 0.3;
+                                buffer[idx] += Math.floor(val * 32767);
+                            }
+                        }
+                    });
+
+                    const dataLen = numSamples * 2;
+                    const wavBuffer = new ArrayBuffer(44 + dataLen);
+                    const view = new DataView(wavBuffer);
+
+                    function writeString(offset, string) {
+                        for (let i = 0; i < string.length; i++) {
+                            view.setUint8(offset + i, string.charCodeAt(i));
                         }
                     }
-                });
 
-                const dataLen = numSamples * 2;
-                const wavBuffer = new ArrayBuffer(44 + dataLen);
-                const view = new DataView(wavBuffer);
+                    writeString(0, 'RIFF');
+                    view.setUint32(4, 36 + dataLen, true);
+                    writeString(8, 'WAVE');
+                    writeString(12, 'fmt ');
+                    view.setUint32(16, 16, true);
+                    view.setUint16(20, 1, true);
+                    view.setUint16(22, 1, true);
+                    view.setUint32(24, sampleRate, true);
+                    view.setUint32(28, sampleRate * 2, true);
+                    view.setUint16(32, 2, true);
+                    view.setUint16(34, 16, true);
+                    writeString(36, 'data');
+                    view.setUint32(40, dataLen, true);
 
-                function writeString(offset, string) {
-                    for (let i = 0; i < string.length; i++) {
-                        view.setUint8(offset + i, string.charCodeAt(i));
+                    for (let i = 0; i < numSamples; i++) {
+                        view.setInt16(44 + i * 2, buffer[i], true);
                     }
-                }
 
-                writeString(0, 'RIFF');
-                view.setUint32(4, 36 + dataLen, true);
-                writeString(8, 'WAVE');
-                writeString(12, 'fmt ');
-                view.setUint32(16, 16, true);
-                view.setUint16(20, 1, true);
-                view.setUint16(22, 1, true);
-                view.setUint32(24, sampleRate, true);
-                view.setUint32(28, sampleRate * 2, true);
-                view.setUint16(32, 2, true);
-                view.setUint16(34, 16, true);
-                writeString(36, 'data');
-                view.setUint32(40, dataLen, true);
-
-                for (let i = 0; i < numSamples; i++) {
-                    view.setInt16(44 + i * 2, buffer[i], true);
+                    let binary = '';
+                    const bytes = new Uint8Array(wavBuffer);
+                    const chunk = 8192;
+                    for (let i = 0; i < bytes.length; i += chunk) {
+                        binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+                    }
+                    return 'data:audio/wav;base64,' + btoa(binary);
+                } catch(e) {
+                    console.error('[WAV Gen Error]:', e);
+                    return '';
                 }
-
-                let binary = '';
-                const bytes = new Uint8Array(wavBuffer);
-                for (let i = 0; i < bytes.byteLength; i++) {
-                    binary += String.fromCharCode(bytes[i]);
-                }
-                return 'data:audio/wav;base64,' + btoa(binary);
             }
 
             function initAudioElements() {
@@ -685,7 +690,12 @@ async def build_ui():
 
             window.requestCafeNotificationPermission = function() {
                 if ("Notification" in window && Notification.permission === "default") {
-                    Notification.requestPermission().catch(function(){});
+                    try {
+                        const p = Notification.requestPermission();
+                        if (p && typeof p.then === 'function') {
+                            p.catch(function(){});
+                        }
+                    } catch(e) {}
                 }
             };
 
@@ -713,7 +723,6 @@ async def build_ui():
                 }
 
                 window.requestCafeNotificationPermission();
-                audioUnlocked = true;
             };
 
             // CAPTURE PHASE LISTENER (useCapture: true)
@@ -727,11 +736,14 @@ async def build_ui():
                     initAudioElements();
                     const audio = (mode === 'pomodoro') ? pomoAudio : breakAudio;
 
+                    let played = false;
                     if (audio) {
                         audio.currentTime = 0;
                         const playPromise = audio.play();
                         if (playPromise !== undefined) {
-                            playPromise.catch(function(err) {
+                            playPromise.then(() => {
+                                played = true;
+                            }).catch(function(err) {
                                 playWebAudioFallback(mode);
                             });
                         }
@@ -739,27 +751,37 @@ async def build_ui():
                         playWebAudioFallback(mode);
                     }
 
-                    // SILENT NATIVE SYSTEM NOTIFICATION
-                    if ("Notification" in window && Notification.permission === "granted") {
-                        let bodyText = "";
-                        if (mode === 'pomodoro') {
-                            bodyText = (lang === 'pt') ? "Pausa iniciada" : "Break started";
-                        } else if (mode === 'break') {
-                            bodyText = (lang === 'pt') ? "Foco iniciado" : "Focus started";
+                    setTimeout(function() {
+                        if (!played) {
+                            playWebAudioFallback(mode);
                         }
+                    }, 100);
 
-                        if (bodyText) {
-                            const notif = new Notification("CaFE", {
-                                body: bodyText,
-                                silent: true,
-                                tag: 'cafe-alert-' + mode,
-                                requireInteraction: false
-                            });
-                            setTimeout(function() { notif.close(); }, 3000);
+                    // SILENT NATIVE SYSTEM NOTIFICATION
+                    try {
+                        if ("Notification" in window && Notification.permission === "granted") {
+                            let bodyText = "";
+                            if (mode === 'pomodoro') {
+                                bodyText = (lang === 'pt') ? "Pausa iniciada" : "Break started";
+                            } else if (mode === 'break') {
+                                bodyText = (lang === 'pt') ? "Foco iniciado" : "Focus started";
+                            }
+
+                            if (bodyText) {
+                                const notif = new Notification("CaFE", {
+                                    body: bodyText,
+                                    silent: true,
+                                    tag: 'cafe-alert-' + mode,
+                                    requireInteraction: false
+                                });
+                                setTimeout(function() { notif.close(); }, 3000);
+                            }
                         }
+                    } catch(e) {
+                        console.warn('[Notification Error]:', e);
                     }
                 } catch(e) {
-                    console.error('[CaFE Alert Error]:', e);
+                    console.error('[CaFE Alert Exception]:', e);
                 }
             };
 
