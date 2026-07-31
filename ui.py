@@ -217,9 +217,11 @@ async def _safe_run_js(client, js_code: str):
         pass
 
 def global_on_timer_end(mode: str):
-    # Broadcast sound & alert trigger across active user client connections
+    # Broadcast sound & alert trigger across active user client connections with exact language context
     if mode in ('pomodoro', 'break'):
-        js_code = f"if (typeof window.playCafeAlert === 'function') window.playCafeAlert('{mode}');"
+        with _CACHE_LOCK:
+            lang = cached_language
+        js_code = f"if (typeof window.playCafeAlert === 'function') window.playCafeAlert('{mode}', '{lang}');"
         for client in list(active_clients):
             asyncio.create_task(_safe_run_js(client, js_code))
 
@@ -590,21 +592,95 @@ async def build_ui():
         }
     </style>
     <script>
-        // WEB AUDIO API PERSISTENT SYNTHESIZER & NOTIFICATION ENGINE
+        // STANDALONE AUDIO SYNTHESIZER & NOTIFICATION ENGINE WITH CAPTURE-PHASE EVENT UNLOCKING
         (function() {
             window.cafeAudioCtx = null;
+            let pomoAudio = null;
+            let breakAudio = null;
+            let audioUnlocked = false;
 
-            function getAudioContext() {
-                if (!window.cafeAudioCtx) {
-                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-                    if (AudioCtx) {
-                        window.cafeAudioCtx = new AudioCtx();
+            // Generate clean PCM WAV Data URIs on the client to guarantee immediate HTML5 Audio playback
+            function createWavDataUri(type) {
+                const sampleRate = 22050;
+                let tones = [];
+                if (type === 'pomodoro') {
+                    // Ascending chord: C5 (523.25Hz), E5 (659.25Hz), G5 (784.00Hz)
+                    tones = [
+                        { f: 523.25, start: 0.00, dur: 0.15 },
+                        { f: 659.25, start: 0.18, dur: 0.15 },
+                        { f: 784.00, start: 0.36, dur: 0.20 }
+                    ];
+                } else {
+                    // Descending alert: G5 (784.00Hz), C5 (523.25Hz)
+                    tones = [
+                        { f: 784.00, start: 0.00, dur: 0.18 },
+                        { f: 523.25, start: 0.20, dur: 0.22 }
+                    ];
+                }
+
+                const totalDuration = tones[tones.length - 1].start + tones[tones.length - 1].dur + 0.05;
+                const numSamples = Math.floor(sampleRate * totalDuration);
+                const buffer = new Int16Array(numSamples);
+
+                tones.forEach(t => {
+                    const startSample = Math.floor(t.start * sampleRate);
+                    const durSamples = Math.floor(t.dur * sampleRate);
+                    for (let i = 0; i < durSamples; i++) {
+                        const idx = startSample + i;
+                        if (idx < numSamples) {
+                            const time = i / sampleRate;
+                            const env = Math.sin((i / durSamples) * Math.PI);
+                            const val = Math.sin(2 * Math.PI * t.f * time) * env * 0.3;
+                            buffer[idx] += Math.floor(val * 32767);
+                        }
+                    }
+                });
+
+                const dataLen = numSamples * 2;
+                const wavBuffer = new ArrayBuffer(44 + dataLen);
+                const view = new DataView(wavBuffer);
+
+                function writeString(offset, string) {
+                    for (let i = 0; i < string.length; i++) {
+                        view.setUint8(offset + i, string.charCodeAt(i));
                     }
                 }
-                if (window.cafeAudioCtx && window.cafeAudioCtx.state === 'suspended') {
-                    window.cafeAudioCtx.resume().catch(function(){});
+
+                writeString(0, 'RIFF');
+                view.setUint32(4, 36 + dataLen, true);
+                writeString(8, 'WAVE');
+                writeString(12, 'fmt ');
+                view.setUint32(16, 16, true);
+                view.setUint16(20, 1, true);
+                view.setUint16(22, 1, true);
+                view.setUint32(24, sampleRate, true);
+                view.setUint32(28, sampleRate * 2, true);
+                view.setUint16(32, 2, true);
+                view.setUint16(34, 16, true);
+                writeString(36, 'data');
+                view.setUint32(40, dataLen, true);
+
+                for (let i = 0; i < numSamples; i++) {
+                    view.setInt16(44 + i * 2, buffer[i], true);
                 }
-                return window.cafeAudioCtx;
+
+                let binary = '';
+                const bytes = new Uint8Array(wavBuffer);
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                return 'data:audio/wav;base64,' + btoa(binary);
+            }
+
+            function initAudioElements() {
+                if (!pomoAudio) {
+                    pomoAudio = new Audio(createWavDataUri('pomodoro'));
+                    pomoAudio.preload = 'auto';
+                }
+                if (!breakAudio) {
+                    breakAudio = new Audio(createWavDataUri('break'));
+                    breakAudio.preload = 'auto';
+                }
             }
 
             window.requestCafeNotificationPermission = function() {
@@ -613,78 +689,63 @@ async def build_ui():
                 }
             };
 
-            function unlockAudio() {
-                const ctx = getAudioContext();
-                if (ctx && ctx.state === 'suspended') {
-                    ctx.resume().catch(function(){});
-                }
-                window.requestCafeNotificationPermission();
-            }
+            window.unlockCafeAudioAndNotifications = function() {
+                initAudioElements();
 
-            ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evt) {
-                document.addEventListener(evt, unlockAudio, { passive: true });
-            });
-
-            window.playCafeAlert = function(mode) {
-                try {
-                    const ctx = getAudioContext();
-                    if (ctx) {
-                        if (ctx.state === 'suspended') {
-                            ctx.resume().catch(function(){});
-                        }
-
-                        if (mode === 'pomodoro') {
-                            // Ascending major chord (C5, E5, G5)
-                            const freqs = [523.25, 659.25, 784.00];
-                            freqs.forEach((f, i) => {
-                                const osc = ctx.createOscillator();
-                                const gain = ctx.createGain();
-                                osc.type = 'sine';
-                                osc.frequency.value = f;
-                                gain.gain.value = 0.2;
-
-                                osc.connect(gain);
-                                gain.connect(ctx.destination);
-
-                                const startTime = ctx.currentTime + i * 0.18;
-                                osc.start(startTime);
-                                osc.stop(startTime + 0.15);
-                            });
-                        } else if (mode === 'break') {
-                            // Descending alert tone (G5 -> C5)
-                            const freqs = [784.00, 523.25];
-                            freqs.forEach((f, i) => {
-                                const osc = ctx.createOscillator();
-                                const gain = ctx.createGain();
-                                osc.type = 'triangle';
-                                osc.frequency.value = f;
-                                gain.gain.value = 0.25;
-
-                                osc.connect(gain);
-                                gain.connect(ctx.destination);
-
-                                const startTime = ctx.currentTime + i * 0.2;
-                                osc.start(startTime);
-                                osc.stop(startTime + 0.18);
-                            });
+                [pomoAudio, breakAudio].forEach(audio => {
+                    if (audio) {
+                        const promise = audio.play();
+                        if (promise !== undefined) {
+                            promise.then(() => {
+                                audio.pause();
+                                audio.currentTime = 0;
+                            }).catch(() => {});
                         }
                     }
+                });
 
-                    // SUBTLE SILENT DESKTOP NOTIFICATION
+                if (!window.cafeAudioCtx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) window.cafeAudioCtx = new AudioCtx();
+                }
+                if (window.cafeAudioCtx && window.cafeAudioCtx.state === 'suspended') {
+                    window.cafeAudioCtx.resume().catch(() => {});
+                }
+
+                window.requestCafeNotificationPermission();
+                audioUnlocked = true;
+            };
+
+            // CAPTURE PHASE LISTENER (useCapture: true)
+            // Intercepts user gestures BEFORE Quasar/Vue components consume or stop event propagation!
+            ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evtName) {
+                window.addEventListener(evtName, window.unlockCafeAudioAndNotifications, { capture: true, passive: true });
+            });
+
+            window.playCafeAlert = function(mode, lang) {
+                try {
+                    initAudioElements();
+                    const audio = (mode === 'pomodoro') ? pomoAudio : breakAudio;
+
+                    if (audio) {
+                        audio.currentTime = 0;
+                        const playPromise = audio.play();
+                        if (playPromise !== undefined) {
+                            playPromise.catch(function(err) {
+                                playWebAudioFallback(mode);
+                            });
+                        }
+                    } else {
+                        playWebAudioFallback(mode);
+                    }
+
+                    // SILENT NATIVE SYSTEM NOTIFICATION
                     if ("Notification" in window && Notification.permission === "granted") {
-                        const isPt = document.body && (
-                            document.body.innerText.includes('Bom dia') ||
-                            document.body.innerText.includes('Boa tarde') ||
-                            document.body.innerText.includes('Boa noite') ||
-                            document.body.innerText.includes('Pausa') ||
-                            document.body.innerText.includes('Estatísticas')
-                        );
-
                         let bodyText = "";
                         if (mode === 'pomodoro') {
-                            bodyText = isPt ? "Pausa iniciada" : "Break started";
+                            bodyText = (lang === 'pt') ? "Pausa iniciada" : "Break started";
                         } else if (mode === 'break') {
-                            bodyText = isPt ? "Foco iniciado" : "Focus started";
+                            bodyText = (lang === 'pt') ? "Foco iniciado" : "Focus started";
                         }
 
                         if (bodyText) {
@@ -701,6 +762,51 @@ async def build_ui():
                     console.error('[CaFE Alert Error]:', e);
                 }
             };
+
+            function playWebAudioFallback(mode) {
+                if (!window.cafeAudioCtx) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (AudioCtx) window.cafeAudioCtx = new AudioCtx();
+                }
+                const ctx = window.cafeAudioCtx;
+                if (!ctx) return;
+
+                const run = () => {
+                    if (mode === 'pomodoro') {
+                        [523.25, 659.25, 784.00].forEach((f, i) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'sine';
+                            osc.frequency.value = f;
+                            gain.gain.value = 0.2;
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            const startTime = ctx.currentTime + i * 0.18;
+                            osc.start(startTime);
+                            osc.stop(startTime + 0.15);
+                        });
+                    } else {
+                        [784.00, 523.25].forEach((f, i) => {
+                            const osc = ctx.createOscillator();
+                            const gain = ctx.createGain();
+                            osc.type = 'triangle';
+                            osc.frequency.value = f;
+                            gain.gain.value = 0.25;
+                            osc.connect(gain);
+                            gain.connect(ctx.destination);
+                            const startTime = ctx.currentTime + i * 0.2;
+                            osc.start(startTime);
+                            osc.stop(startTime + 0.18);
+                        });
+                    }
+                };
+
+                if (ctx.state === 'suspended') {
+                    ctx.resume().then(run).catch(() => {});
+                } else {
+                    run();
+                }
+            }
         })();
     </script>
     ''')
@@ -985,10 +1091,9 @@ async def build_ui():
         content_container.update()
 
     def toggle_start_pause():
-        # Ensure user gesture pre-authorization for Web Audio Context & Notification Permissions
         asyncio.create_task(_safe_run_js(
             client, 
-            "if(window.requestCafeNotificationPermission) window.requestCafeNotificationPermission(); if(window.cafeAudioCtx && window.cafeAudioCtx.state === 'suspended') window.cafeAudioCtx.resume();"
+            "if(window.unlockCafeAudioAndNotifications) window.unlockCafeAudioAndNotifications();"
         ))
         
         status = focus_timer.state.status
