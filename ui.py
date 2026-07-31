@@ -816,7 +816,7 @@ async def build_ui():
                             const gain = ctx.createGain();
                             osc.type = 'sine';
                             osc.frequency.value = f;
-                            gain.gain.value = 0.2;
+                            gain.gain.value = 0.7;
                             osc.connect(gain);
                             gain.connect(ctx.destination);
                             const startTime = ctx.currentTime + i * 0.18;
@@ -829,7 +829,7 @@ async def build_ui():
                             const gain = ctx.createGain();
                             osc.type = 'triangle';
                             osc.frequency.value = f;
-                            gain.gain.value = 0.25;
+                            gain.gain.value = 0.7;
                             osc.connect(gain);
                             gain.connect(ctx.destination);
                             const startTime = ctx.currentTime + i * 0.2;
