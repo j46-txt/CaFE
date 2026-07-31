@@ -1,4 +1,3 @@
-# ui.py
 # -*- coding: utf-8 -*-
 import asyncio
 import datetime
@@ -211,6 +210,9 @@ def global_on_session_complete(
 
 async def _safe_run_js(client, js_code: str):
     """Safely executes JavaScript on a client without unhandled task exception warnings on disconnect."""
+    # FIX: Verify socket connection before attempting delivery to prevent backend exception flooding
+    if not client.has_socket_connection:
+        return
     try:
         await client.run_javascript(js_code)
     except Exception as e:
@@ -595,6 +597,8 @@ async def build_ui():
         // STANDALONE AUDIO SYNTHESIZER & NOTIFICATION ENGINE WITH CAPTURE-PHASE EVENT UNLOCKING
         (function() {
             window.cafeAudioCtx = null;
+            window.cafeAudioUnlocked = false; // FIX: Ensure initialization only fires strictly once per session
+            
             let pomoAudio = null;
             let breakAudio = null;
 
@@ -700,6 +704,10 @@ async def build_ui():
             };
 
             window.unlockCafeAudioAndNotifications = function() {
+                // FIX: Stop repeating the capture initialization loop on every click, eliminating CPU stutter
+                if (window.cafeAudioUnlocked) return;
+                window.cafeAudioUnlocked = true;
+                
                 initAudioElements();
 
                 [pomoAudio, breakAudio].forEach(audio => {
@@ -723,10 +731,14 @@ async def build_ui():
                 }
 
                 window.requestCafeNotificationPermission();
+
+                // FIX: Dismantle and drop listeners from memory structure to prevent leakage 
+                ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evtName) {
+                    window.removeEventListener(evtName, window.unlockCafeAudioAndNotifications, { capture: true, passive: true });
+                });
             };
 
             // CAPTURE PHASE LISTENER (useCapture: true)
-            // Intercepts user gestures BEFORE Quasar/Vue components consume or stop event propagation!
             ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evtName) {
                 window.addEventListener(evtName, window.unlockCafeAudioAndNotifications, { capture: true, passive: true });
             });
@@ -740,22 +752,26 @@ async def build_ui():
                     if (audio) {
                         audio.currentTime = 0;
                         const playPromise = audio.play();
+                        
                         if (playPromise !== undefined) {
+                            // FIX: Prevent double-audio racing fallback mechanism overlapping with delayed WAV files
+                            let fallbackTimer = setTimeout(function() {
+                                if (!played) {
+                                    playWebAudioFallback(mode);
+                                }
+                            }, 250);
+
                             playPromise.then(() => {
                                 played = true;
+                                clearTimeout(fallbackTimer); // Clear explicitly upon success
                             }).catch(function(err) {
+                                clearTimeout(fallbackTimer);
                                 playWebAudioFallback(mode);
                             });
                         }
                     } else {
                         playWebAudioFallback(mode);
                     }
-
-                    setTimeout(function() {
-                        if (!played) {
-                            playWebAudioFallback(mode);
-                        }
-                    }, 100);
 
                     // SILENT NATIVE SYSTEM NOTIFICATION
                     try {
@@ -1209,8 +1225,11 @@ async def build_ui():
         mode_label = t('main_timer_focus') if focus_timer.state.mode == 'pomodoro' else (t('main_timer_break') if focus_timer.state.mode == 'break' else t('main_stopwatch'))
         new_page_title = f"{focus_timer.display_time} · {mode_label}"
         if getattr(client, '_last_page_title', None) != new_page_title:
-            ui.page_title(new_page_title)
-            client._last_page_title = new_page_title
+            try:
+                ui.page_title(new_page_title)
+                client._last_page_title = new_page_title
+            except Exception:
+                pass
 
         update_vis(skip_btn, is_break)
         update_vis(reset_btn, is_pomo_mode and status != 'idle')
