@@ -12,7 +12,7 @@ import settings
 import database
 
 # Centralized global state to prevent multi-tab/refresh desynchronization and race conditions
-cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0}
+cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0, 'rolling_7d': 0}
 cached_active_subject = None
 cached_weekly_goal_hours = 10
 cached_auto_rotate = True  # Track dynamic rotation mode state
@@ -24,9 +24,6 @@ _CACHE_LOCK = threading.Lock()
 
 # Thread-safe executor strictly for SQLite disk writes to prevent OperationalError locking
 DB_WRITE_EXECUTOR = concurrent.futures.ThreadPoolExecutor(max_workers=1)
-
-# Ensure application stays locked to local Brazil time regardless of Render's UTC server
-LOCAL_TZ = datetime.timezone(datetime.timedelta(hours=-3))
 
 # Global translation map (English default, selectable PT-BR)
 TRANSLATIONS = {
@@ -210,7 +207,6 @@ def global_on_session_complete(
 
 async def _safe_run_js(client, js_code: str):
     """Safely executes JavaScript on a client without unhandled task exception warnings on disconnect."""
-    # FIX: Verify socket connection before attempting delivery to prevent backend exception flooding
     if not client.has_socket_connection:
         return
     try:
@@ -219,7 +215,6 @@ async def _safe_run_js(client, js_code: str):
         print(f"[JS Execution Error]: {e}")
 
 def global_on_timer_end(mode: str):
-    # Broadcast sound & alert trigger across active user client connections with exact language context
     if mode in ('pomodoro', 'break'):
         with _CACHE_LOCK:
             lang = cached_language
@@ -393,7 +388,7 @@ async def build_ui():
             color: #ebdcd0 !important;
         }
 
-        /* INLINE SUGGESTION EDIT PENCIL BUTTON (SUPERSCRIPT EXPONENT DESIGN) */
+        /* INLINE SUGGESTION EDIT PENCIL BUTTON */
         html body .edit-pencil-btn,
         html body .edit-pencil-btn:hover,
         html body .edit-pencil-btn:focus,
@@ -417,7 +412,7 @@ async def build_ui():
             color: #875d46 !important;
         }
 
-        /* INLINE SUGGESTION ROTATE BUTTON (PROMINENT DESIGN WITH HOVER SPIN) */
+        /* INLINE SUGGESTION ROTATE BUTTON */
         html body .rotate-main-btn,
         html body .rotate-main-btn:hover,
         html body .rotate-main-btn:focus,
@@ -480,7 +475,7 @@ async def build_ui():
             color: #875d46 !important;
         }
         
-        /* DIALOG CONFIGURATION CORES - SEPARATED LABEL AND INPUT VALUE COLORS */
+        /* DIALOG CONFIGURATION CORES */
         html body .q-dialog .q-field__label {
             color: #59514a !important;
         }
@@ -597,25 +592,22 @@ async def build_ui():
         // STANDALONE AUDIO SYNTHESIZER & NOTIFICATION ENGINE WITH CAPTURE-PHASE EVENT UNLOCKING
         (function() {
             window.cafeAudioCtx = null;
-            window.cafeAudioUnlocked = false; // FIX: Ensure initialization only fires strictly once per session
+            window.cafeAudioUnlocked = false;
             
             let pomoAudio = null;
             let breakAudio = null;
 
-            // Generate clean PCM WAV Data URIs on the client to guarantee immediate HTML5 Audio playback
             function createWavDataUri(type) {
                 try {
                     const sampleRate = 22050;
                     let tones = [];
                     if (type === 'pomodoro') {
-                        // Ascending chord: C5 (523.25Hz), E5 (659.25Hz), G5 (784.00Hz)
                         tones = [
                             { f: 523.25, start: 0.00, dur: 0.15 },
                             { f: 659.25, start: 0.18, dur: 0.15 },
                             { f: 784.00, start: 0.36, dur: 0.20 }
                         ];
                     } else {
-                        // Descending alert: G5 (784.00Hz), C5 (523.25Hz)
                         tones = [
                             { f: 784.00, start: 0.00, dur: 0.18 },
                             { f: 523.25, start: 0.20, dur: 0.22 }
@@ -704,7 +696,6 @@ async def build_ui():
             };
 
             window.unlockCafeAudioAndNotifications = function() {
-                // FIX: Stop repeating the capture initialization loop on every click, eliminating CPU stutter
                 if (window.cafeAudioUnlocked) return;
                 window.cafeAudioUnlocked = true;
                 
@@ -732,13 +723,11 @@ async def build_ui():
 
                 window.requestCafeNotificationPermission();
 
-                // FIX: Dismantle and drop listeners from memory structure to prevent leakage 
                 ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evtName) {
                     window.removeEventListener(evtName, window.unlockCafeAudioAndNotifications, { capture: true, passive: true });
                 });
             };
 
-            // CAPTURE PHASE LISTENER (useCapture: true)
             ['click', 'pointerdown', 'keydown', 'touchstart'].forEach(function(evtName) {
                 window.addEventListener(evtName, window.unlockCafeAudioAndNotifications, { capture: true, passive: true });
             });
@@ -754,7 +743,6 @@ async def build_ui():
                         const playPromise = audio.play();
                         
                         if (playPromise !== undefined) {
-                            // FIX: Prevent double-audio racing fallback mechanism overlapping with delayed WAV files
                             let fallbackTimer = setTimeout(function() {
                                 if (!played) {
                                     playWebAudioFallback(mode);
@@ -763,7 +751,7 @@ async def build_ui():
 
                             playPromise.then(() => {
                                 played = true;
-                                clearTimeout(fallbackTimer); // Clear explicitly upon success
+                                clearTimeout(fallbackTimer);
                             }).catch(function(err) {
                                 clearTimeout(fallbackTimer);
                                 playWebAudioFallback(mode);
@@ -773,7 +761,6 @@ async def build_ui():
                         playWebAudioFallback(mode);
                     }
 
-                    // SILENT NATIVE SYSTEM NOTIFICATION
                     try {
                         if ("Notification" in window && Notification.permission === "granted") {
                             let bodyText = "";
@@ -849,7 +836,6 @@ async def build_ui():
     </script>
     ''')
 
-    # Pre-declare singleton dialogs to avoid layout stacking loops
     settings_dialog = ui.dialog().props('transition-show=none transition-hide=none')
     suggestions_dialog = ui.dialog().props('transition-show=none transition-hide=none')
     help_dialog = ui.dialog().props('transition-show=none transition-hide=none')
@@ -857,7 +843,7 @@ async def build_ui():
     confirm_dialog = ui.dialog().props('transition-show=none transition-hide=none')
 
     def get_greeting() -> str:
-        hour = datetime.datetime.now(LOCAL_TZ).hour
+        hour = datetime.datetime.now().astimezone().hour
         if 5 <= hour < 12:
             return t('greeting_morning')
         elif 12 <= hour < 18:
@@ -881,14 +867,12 @@ async def build_ui():
             break_input = ui.number(t('config_break'), value=current_break, format='%.0f').classes('w-full mb-2')
             goal_input = ui.number(t('config_goal'), value=current_goal, format='%.0f').classes('w-full mb-2')
             
-            # Dynamic Dropdown Selector to switch between rotation models
             rotation_mode_input = ui.select(
                 options={True: t('config_rotation_auto'), False: t('config_rotation_manual')},
                 value=current_auto_rotate,
                 label=t('config_rotation_mode')
             ).classes('w-full mb-2')
 
-            # Dropdown Selector to change UI languages live
             language_input = ui.select(
                 options={'en': 'English', 'pt': 'Português'},
                 value=current_language,
@@ -943,7 +927,7 @@ async def build_ui():
                     focus_timer.sync_durations()
                     refresh_global_cache()
                 await asyncio.get_running_loop().run_in_executor(DB_WRITE_EXECUTOR, b_save)
-                update_language_labels()  # Force update static layouts
+                update_language_labels()
                 update_display()
                 settings_dialog.close()
 
@@ -1149,7 +1133,6 @@ async def build_ui():
         ui.download(csv_data, 'focus_history.csv' if lang == 'en' else 'historico_foco.csv')
 
     async def manual_rotate():
-        """Asynchronously requests a thread-safe weighted subject rotation and updates the view."""
         def b_rotate():
             subjects.rotate_subject()
             refresh_global_cache()
@@ -1165,7 +1148,6 @@ async def build_ui():
             element.set_visibility(state)
 
     def update_language_labels():
-        """Isolates heavy UI language label updates to avoid WebSocket network spam during timer ticks."""
         update_text(weekly_goal_header_label, t('main_weekly_goal'))
         update_text(stats_header_label, t('main_stats_title'))
         update_text(pace_header_label, t('main_pace'))
@@ -1185,7 +1167,6 @@ async def build_ui():
         update_text(suggestion_title_label, t('main_suggestion_today') if current_auto_rotate else t('main_suggestion_current'))
 
     def update_display():
-        """Lean updater responsible only for dynamic timer states and performance-critical metrics."""
         status = focus_timer.state.status
 
         with _CACHE_LOCK:
@@ -1205,7 +1186,6 @@ async def build_ui():
         is_stopwatch = focus_timer.state.mode == 'stopwatch'
         is_break = focus_timer.state.mode == 'break'
 
-        # Guard timer status label styling to avoid DOM style churn on every second tick
         last_mode = getattr(client, '_last_timer_mode', None)
         if last_mode != focus_timer.state.mode:
             client._last_timer_mode = focus_timer.state.mode
@@ -1235,7 +1215,6 @@ async def build_ui():
         update_vis(reset_btn, is_pomo_mode and status != 'idle')
         update_vis(stop_btn, is_stopwatch and status != 'idle')
 
-        # Guard toggle buttons styling to prevent unnecessary WebSocket frame mutations
         is_pomo_active = focus_timer.state.mode in ('pomodoro', 'break')
         last_pomo_active = getattr(client, '_last_pomo_active', None)
         if last_pomo_active != is_pomo_active:
@@ -1255,7 +1234,7 @@ async def build_ui():
             stopwatch_toggle_btn.disable()
 
         active_focus_seconds = 0
-        if status == 'running':
+        if status == 'running' and focus_timer.state.mode in ('pomodoro', 'stopwatch'):
             active_focus_seconds = focus_timer.state.seconds_focused_in_turn
 
         goal_seconds = current_goal * 3600
@@ -1263,10 +1242,14 @@ async def build_ui():
         live_today = current_stats['today'] + active_focus_seconds
         live_week = current_stats['week'] + active_focus_seconds
         live_total = current_stats['total'] + active_focus_seconds
+        live_rolling_7d = current_stats.get('rolling_7d', 0) + active_focus_seconds
+
+        # Recompute live pace in hours for the rolling 7-day window
+        live_pace_hours = live_rolling_7d / 3600.0
 
         update_text(week_label, f"{statistics.format_duration(live_week)} / {current_goal}h")
         update_text(total_label, statistics.format_duration(live_total))
-        update_text(avg_label, f"{current_stats['avg_week_hours']:.1f}{t('main_pace_suffix')}")
+        update_text(avg_label, f"{live_pace_hours:.1f}{t('main_pace_suffix')}")
         
         live_focus_days = current_stats['focus_days']
         if current_stats['today'] == 0 and active_focus_seconds > 0:
@@ -1296,7 +1279,7 @@ async def build_ui():
     )
     
     def update_clock():
-        now = datetime.datetime.now(LOCAL_TZ)
+        now = datetime.datetime.now().astimezone()
         date_str = now.strftime('%d/%m/%Y')
         with _CACHE_LOCK:
             lang = cached_language
