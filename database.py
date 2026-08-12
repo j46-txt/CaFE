@@ -7,7 +7,7 @@ import threading
 import queue
 import tempfile
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from contextlib import contextmanager
 
@@ -166,11 +166,18 @@ def save_or_update_focus_session(
     duration_seconds: int,
     timer_mode: str
 ) -> int:
-    """Inserts a new session or updates an existing one using session ID continuity."""
-    start_date = start_dt.strftime('%Y-%m-%d')
-    start_time = start_dt.strftime('%H:%M:%S')
-    end_date = end_dt.strftime('%Y-%m-%d')
-    end_time = end_dt.strftime('%H:%M:%S')
+    """Inserts a new session or updates an existing one using session ID continuity, converting timestamps dynamically to the local environment time."""
+    start_aware = start_dt if start_dt.tzinfo else start_dt.replace(tzinfo=timezone.utc)
+    end_aware = end_dt if end_dt.tzinfo else end_dt.replace(tzinfo=timezone.utc)
+
+    # Convert dynamically to environment/OS local timezone
+    start_local = start_aware.astimezone()
+    end_local = end_aware.astimezone()
+
+    start_date = start_local.strftime('%Y-%m-%d')
+    start_time = start_local.strftime('%H:%M:%S')
+    end_date = end_local.strftime('%Y-%m-%d')
+    end_time = end_local.strftime('%H:%M:%S')
 
     with get_db() as db:
         if session_id is not None:
