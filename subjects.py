@@ -8,8 +8,6 @@ from typing import Optional, List
 import database
 import settings
 
-LOCAL_TZ = datetime.timezone(datetime.timedelta(hours=-3))
-
 @dataclass
 class Subject:
     id: int
@@ -181,7 +179,7 @@ def ensure_daily_rotation() -> None:
     if not settings.get_auto_rotate():
         return
     with rotation_lock:
-        today_str = datetime.datetime.now(LOCAL_TZ).strftime('%Y-%m-%d')
+        today_str = datetime.datetime.now().astimezone().strftime('%Y-%m-%d')
         last_date = settings.get_last_rotation_date()
         if not last_date:
             settings.set_last_rotation_date(today_str)
