@@ -6,88 +6,57 @@ import io
 import database
 from typing import Dict, Any
 
-LOCAL_TZ = datetime.timezone(datetime.timedelta(hours=-3))
-
 def record_session(subject_id: int, duration_seconds: int, timer_mode: str) -> None:
     if duration_seconds <= 0:
         return
     end_dt = datetime.datetime.now(datetime.timezone.utc)
     start_dt = end_dt - datetime.timedelta(seconds=duration_seconds)
-    with database.get_db() as db:
-        db.execute('''
-            INSERT INTO focus_sessions (subject_id, start_date, start_time, end_date, end_time, duration_seconds, timer_mode)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (
-            subject_id,
-            start_dt.strftime('%Y-%m-%d'),
-            start_dt.strftime('%H:%M:%S'),
-            end_dt.strftime('%Y-%m-%d'),
-            end_dt.strftime('%H:%M:%S'),
-            duration_seconds,
-            timer_mode
-        ))
+    database.save_or_update_focus_session(
+        session_id=None,
+        subject_id=subject_id,
+        start_dt=start_dt,
+        end_dt=end_dt,
+        duration_seconds=duration_seconds,
+        timer_mode=timer_mode
+    )
 
 def get_stats() -> Dict[str, Any]:
-    today_seconds = 0
-    week_seconds = 0
-
-    now = datetime.datetime.now(LOCAL_TZ)
-    today_date = now.date()
-    start_of_week = today_date - datetime.timedelta(days=today_date.weekday())
+    """Calculates study statistics using environment local date and a rolling 7-day pace window."""
+    today_date = datetime.datetime.now().astimezone().date()
+    today_str = today_date.strftime('%Y-%m-%d')
+    
+    start_of_week_date = today_date - datetime.timedelta(days=today_date.weekday())
+    start_of_week_str = start_of_week_date.strftime('%Y-%m-%d')
+    
+    seven_days_ago_date = today_date - datetime.timedelta(days=6)
+    seven_days_ago_str = seven_days_ago_date.strftime('%Y-%m-%d')
 
     with database.get_db() as db:
         total_row = db.execute('SELECT TOTAL(duration_seconds) as total_sec FROM focus_sessions').fetchone()
         total_seconds = int(total_row['total_sec']) if total_row else 0
 
-        all_dates_rows = db.execute('SELECT start_date, start_time FROM focus_sessions').fetchall()
-        local_focus_days = set()
-        for r in all_dates_rows:
-            try:
-                utc_dt = datetime.datetime.strptime(f"{r['start_date']} {r['start_time']}", '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
-                local_focus_days.add(utc_dt.astimezone(LOCAL_TZ).date())
-            except (ValueError, TypeError):
-                local_focus_days.add(r['start_date'])
-        focus_days = len(local_focus_days)
+        today_row = db.execute('SELECT TOTAL(duration_seconds) as today_sec FROM focus_sessions WHERE start_date = ?', (today_str,)).fetchone()
+        today_seconds = int(today_row['today_sec']) if today_row else 0
 
-        first_row = db.execute('SELECT start_date, start_time FROM focus_sessions ORDER BY id ASC LIMIT 1').fetchone()
+        week_row = db.execute('SELECT TOTAL(duration_seconds) as week_sec FROM focus_sessions WHERE start_date >= ? AND start_date <= ?', (start_of_week_str, today_str)).fetchone()
+        week_seconds = int(week_row['week_sec']) if week_row else 0
 
-        lookback_limit = (start_of_week - datetime.timedelta(days=2)).strftime('%Y-%m-%d')
-        rows = db.execute(
-            'SELECT end_date, end_time, duration_seconds FROM focus_sessions WHERE start_date >= ?',
-            (lookback_limit,)
-        ).fetchall()
+        rolling_7d_row = db.execute('SELECT TOTAL(duration_seconds) as rolling_sec FROM focus_sessions WHERE start_date >= ?', (seven_days_ago_str,)).fetchone()
+        rolling_7d_seconds = int(rolling_7d_row['rolling_sec']) if rolling_7d_row else 0
 
-    for row in rows:
-        duration = row['duration_seconds']
-        utc_dt_str = f"{row['end_date']} {row['end_time']}"
-        try:
-            utc_dt = datetime.datetime.strptime(utc_dt_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
-            local_date = utc_dt.astimezone(LOCAL_TZ).date()
-            if local_date == today_date:
-                today_seconds += duration
-            if start_of_week <= local_date <= today_date:
-                week_seconds += duration
-        except ValueError:
-            continue
+        days_row = db.execute('SELECT COUNT(DISTINCT start_date) as day_count FROM focus_sessions').fetchone()
+        focus_days = int(days_row['day_count']) if days_row else 0
 
-    avg_week_hours = 0.0
-    if first_row:
-        try:
-            first_utc_str = f"{first_row['start_date']} {first_row['start_time']}"
-            first_utc_dt = datetime.datetime.strptime(first_utc_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
-            first_local_date = first_utc_dt.astimezone(LOCAL_TZ).date()
-            days_since_first = (today_date - first_local_date).days
-            total_weeks = max(1.0, days_since_first / 7.0)
-            avg_week_hours = (total_seconds / 3600.0) / total_weeks
-        except ValueError:
-            pass
+    # Pace is defined as total hours studied in the rolling 7-day window
+    avg_week_hours = rolling_7d_seconds / 3600.0
 
     return {
         'today': today_seconds,
         'week': week_seconds,
         'total': total_seconds,
         'avg_week_hours': avg_week_hours,
-        'focus_days': focus_days
+        'focus_days': focus_days,
+        'rolling_7d': rolling_7d_seconds
     }
 
 def format_duration(seconds: int) -> str:
@@ -96,6 +65,7 @@ def format_duration(seconds: int) -> str:
     return f"{hours}h {minutes}m"
 
 def export_history_csv() -> bytes:
+    """Exports session history formatted directly in local environment time."""
     with database.get_db() as db:
         rows = db.execute('''
             SELECT fs.start_date, fs.start_time, fs.end_date, fs.end_time, 
@@ -111,32 +81,17 @@ def export_history_csv() -> bytes:
     
     for row in rows:
         try:
-            start_utc_str = f"{row['start_date']} {row['start_time']}"
-            start_utc = datetime.datetime.strptime(start_utc_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
-            start_local = start_utc.astimezone(LOCAL_TZ)
-            
-            end_utc_str = f"{row['end_date']} {row['end_time']}"
-            end_utc = datetime.datetime.strptime(end_utc_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=datetime.timezone.utc)
-            end_local = end_utc.astimezone(LOCAL_TZ)
-            
-            start_date_str = start_local.strftime('%Y-%m-%d')
-            start_time_str = start_local.strftime('%H:%M:%S')
-            end_date_str = end_local.strftime('%Y-%m-%d')
-            end_time_str = end_local.strftime('%H:%M:%S')
-            weekday = start_local.strftime('%A')
+            dt_obj = datetime.datetime.strptime(row['start_date'], '%Y-%m-%d')
+            weekday = dt_obj.strftime('%A')
         except (ValueError, TypeError):
-            start_date_str = row['start_date']
-            start_time_str = row['start_time']
-            end_date_str = row['end_date']
-            end_time_str = row['end_time']
             weekday = 'Unknown'
             
         writer.writerow([
             row['subject_name'] or "Deleted Subject", 
-            start_date_str, 
-            start_time_str, 
-            end_date_str, 
-            end_time_str, 
+            row['start_date'], 
+            row['start_time'], 
+            row['end_date'], 
+            row['end_time'], 
             row['duration_seconds'], 
             row['timer_mode'], 
             weekday
