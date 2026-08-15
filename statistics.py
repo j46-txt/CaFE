@@ -21,15 +21,15 @@ def record_session(subject_id: int, duration_seconds: int, timer_mode: str) -> N
     )
 
 def get_stats() -> Dict[str, Any]:
-    """Calculates study statistics using environment local date and a rolling 7-day pace window."""
+    """Calculates study statistics using environment local date and a rolling 14-day pace window."""
     today_date = datetime.datetime.now().astimezone().date()
     today_str = today_date.strftime('%Y-%m-%d')
     
     start_of_week_date = today_date - datetime.timedelta(days=today_date.weekday())
     start_of_week_str = start_of_week_date.strftime('%Y-%m-%d')
     
-    seven_days_ago_date = today_date - datetime.timedelta(days=6)
-    seven_days_ago_str = seven_days_ago_date.strftime('%Y-%m-%d')
+    fourteen_days_ago_date = today_date - datetime.timedelta(days=13)
+    fourteen_days_ago_str = fourteen_days_ago_date.strftime('%Y-%m-%d')
 
     with database.get_db() as db:
         total_row = db.execute('SELECT TOTAL(duration_seconds) as total_sec FROM focus_sessions').fetchone()
@@ -41,14 +41,14 @@ def get_stats() -> Dict[str, Any]:
         week_row = db.execute('SELECT TOTAL(duration_seconds) as week_sec FROM focus_sessions WHERE start_date >= ? AND start_date <= ?', (start_of_week_str, today_str)).fetchone()
         week_seconds = int(week_row['week_sec']) if week_row else 0
 
-        rolling_7d_row = db.execute('SELECT TOTAL(duration_seconds) as rolling_sec FROM focus_sessions WHERE start_date >= ?', (seven_days_ago_str,)).fetchone()
-        rolling_7d_seconds = int(rolling_7d_row['rolling_sec']) if rolling_7d_row else 0
+        rolling_14d_row = db.execute('SELECT TOTAL(duration_seconds) as rolling_sec FROM focus_sessions WHERE start_date >= ?', (fourteen_days_ago_str,)).fetchone()
+        rolling_14d_seconds = int(rolling_14d_row['rolling_sec']) if rolling_14d_row else 0
 
         days_row = db.execute('SELECT COUNT(DISTINCT start_date) as day_count FROM focus_sessions').fetchone()
         focus_days = int(days_row['day_count']) if days_row else 0
 
-    # Pace is defined as total hours studied in the rolling 7-day window
-    avg_week_hours = rolling_7d_seconds / 3600.0
+    # Pace is defined as average weekly hours studied in the rolling 14-day window
+    avg_week_hours = (rolling_14d_seconds / 3600.0) / 2.0
 
     return {
         'today': today_seconds,
@@ -56,7 +56,7 @@ def get_stats() -> Dict[str, Any]:
         'total': total_seconds,
         'avg_week_hours': avg_week_hours,
         'focus_days': focus_days,
-        'rolling_7d': rolling_7d_seconds
+        'rolling_14d': rolling_14d_seconds
     }
 
 def format_duration(seconds: int) -> str:
