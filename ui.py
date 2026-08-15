@@ -1,3 +1,4 @@
+# ui.py
 # -*- coding: utf-8 -*-
 import asyncio
 import datetime
@@ -12,7 +13,7 @@ import settings
 import database
 
 # Centralized global state to prevent multi-tab/refresh desynchronization and race conditions
-cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0, 'rolling_7d': 0}
+cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0, 'rolling_14d': 0}
 cached_active_subject = None
 cached_weekly_goal_hours = 10
 cached_auto_rotate = True  # Track dynamic rotation mode state
@@ -57,6 +58,7 @@ TRANSLATIONS = {
             <div class="text-xs frappe-dark mb-4 leading-relaxed" style="text-transform: none !important; display: flex; flex-direction: column; gap: 10px;">
                 <p class="m-0">This system utilizes integrated countdown and count-up timers as the mechanism to support focus while tracking data.</p>
                 <p class="m-0">Every session automatically commits data logs including the calendar date, study duration, suggestion studied and starting and ending timestamps into the history log.</p>
+                <p class="m-0">The Pace metric displays your weekly average focus time calculated over a rolling 14-day window.</p>
                 <p class="m-0">You can define a pool of specific suggestions with assigned probability weights; the engine triggers a weighted selection loop to generate a single daily suggestion which alters every new day.</p>
                 <p class="m-0">To safeguard late-night sessions from abrupt changes, this rotation occurs exclusively upon your first application launch of a fresh calendar day.</p>
             </div>
@@ -72,8 +74,8 @@ TRANSLATIONS = {
         'log_close': "Close Log",
         'main_weekly_goal': "Weekly Goal",
         'main_stats_title': "Statistics",
-        'main_pace': "Pace (Last 7 Days)",
-        'main_pace_suffix': " h",
+        'main_pace': "Pace (Last 14 Days)",
+        'main_pace_suffix': " hours/week",
         'main_total_hours': "Total Hours",
         'main_total_days': "Total Focus Days",
         'main_total_days_suffix': " days",
@@ -118,6 +120,7 @@ TRANSLATIONS = {
             <div class="text-xs frappe-dark mb-4 leading-relaxed" style="text-transform: none !important; display: flex; flex-direction: column; gap: 10px;">
                 <p class="m-0">Este sistema utiliza cronômetros integrados de contagem regressiva (Pomodoro) e contagem progressiva (Cronômetro) como mecanismo para impulsionar o foco e registrar dados de estudo.</p>
                 <p class="m-0">Cada sessão registra e consolida automaticamente no banco de dados local a data, a duração real do foco, a matéria estudada e os horários exatos de início e término.</p>
+                <p class="m-0">A métrica de Ritmo representa a sua média semanal de horas de foco, calculada com base nos últimos 14 dias.</p>
                 <p class="m-0">Você pode cadastrar uma lista de matérias com pesos de probabilidade específicos; o motor de sorteio utiliza um loop baseado em bilhetes para sugerir dinamicamente a matéria da vez.</p>
                 <p class="m-0">Para proteger sessões de estudo noturnas de interrupções bruscas de rotação, o rodízio automático diário ocorre apenas quando o app é aberto pela primeira vez em um novo dia do calendário.</p>
             </div>
@@ -133,8 +136,8 @@ TRANSLATIONS = {
         'log_close': "Fechar Registro",
         'main_weekly_goal': "Meta Semanal",
         'main_stats_title': "Estatísticas",
-        'main_pace': "Ritmo (Últimos 7 dias)",
-        'main_pace_suffix': " h",
+        'main_pace': "Ritmo (Últimos 14 Dias)",
+        'main_pace_suffix': " horas/semana",
         'main_total_hours': "Total de Horas",
         'main_total_days': "Dias de Foco",
         'main_total_days_suffix': " dias",
@@ -1242,10 +1245,10 @@ async def build_ui():
         live_today = current_stats['today'] + active_focus_seconds
         live_week = current_stats['week'] + active_focus_seconds
         live_total = current_stats['total'] + active_focus_seconds
-        live_rolling_7d = current_stats.get('rolling_7d', 0) + active_focus_seconds
+        live_rolling_14d = current_stats.get('rolling_14d', 0) + active_focus_seconds
 
-        # Recompute live pace in hours for the rolling 7-day window
-        live_pace_hours = live_rolling_7d / 3600.0
+        # Recompute live pace in average weekly hours for the rolling 14-day window
+        live_pace_hours = (live_rolling_14d / 3600.0) / 2.0
 
         update_text(week_label, f"{statistics.format_duration(live_week)} / {current_goal}h")
         update_text(total_label, statistics.format_duration(live_total))
