@@ -40,7 +40,7 @@ TRANSLATIONS = {
         'config_rotation_mode': "Rotation Mode",
         'config_rotation_auto': "Daily Automatic",
         'config_rotation_manual': "Manual Session-Based",
-        'config_suggestions': "Suggestions",
+        'config_suggestions': "Enable suggestions",
         'config_suggestions_on': "Enabled",
         'config_suggestions_off': "Disabled",
         'config_language': "Language / Idioma",
@@ -106,7 +106,7 @@ TRANSLATIONS = {
         'config_rotation_mode': "Modo de Rotação",
         'config_rotation_auto': "Automático Diário",
         'config_rotation_manual': "Manual por Sessão",
-        'config_suggestions': "Sugestões",
+        'config_suggestions': "Habilitar sugestões",
         'config_suggestions_on': "Ativadas",
         'config_suggestions_off': "Desabilitadas",
         'config_language': "Idioma / Language",
@@ -521,7 +521,7 @@ async def build_ui():
             border: 1px solid #16100d !important;
         }
         
-        /* PROGRESS BAR: HOLLOW CONTEXT WITH DARK BORDER */
+        /* PROGRESS BAR: HOLLOW CONTEXT WITH DARK BORDER AND ORIGINAL STATIC GRADIENT */
         html body .q-linear-progress { 
             background-color: #000000 !important; 
             background: #000000 !important;
@@ -534,25 +534,9 @@ async def build_ui():
             opacity: 0 !important;
             display: none !important;
         }
-        
-        /* CONTINUOUS COFFEE GRADIENT SHIMMER ANIMATION */
-        @keyframes cafe-gradient-move {
-            0% {
-                background-position: 0% 0%;
-            }
-            100% {
-                background-position: 200% 0%;
-            }
-        }
 
-        html body .q-linear-progress__model,
-        html body .q-linear-progress__model--determinate {
-            background: linear-gradient(90deg, #1a100a 0%, #4e3629 25%, #875d46 50%, #4e3629 75%, #1a100a 100%) !important;
-            background-size: 200% 100% !important;
-            animation: cafe-gradient-move 2.5s linear infinite !important;
-            will-change: background-position !important;
-            opacity: 1 !important;
-            display: block !important;
+        html body .q-linear-progress__model {
+            background: linear-gradient(90deg, #120c09, #6f4e37, #120c09) !important;
         }
         
         /* SKIP BREAK LINK SHORTCUT BUTTON */
@@ -898,7 +882,7 @@ async def build_ui():
             goal_input = ui.number(t('config_goal'), value=current_goal, format='%.0f').classes('w-full mb-2')
             
             with ui.row().classes('w-full justify-between items-center mb-2'):
-                ui.label(t('config_suggestions')).classes('text-xs frappe-dark uppercase tracking-wider')
+                ui.label(t('config_suggestions')).classes('text-xs frappe-dark')
                 suggestions_switch = ui.switch(value=current_sugg_enabled).props('dense dark color=primary')
 
             rotation_mode_input = ui.select(
