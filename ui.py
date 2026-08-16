@@ -106,7 +106,7 @@ TRANSLATIONS = {
         'config_rotation_mode': "Modo de Rotação",
         'config_rotation_auto': "Automático Diário",
         'config_rotation_manual': "Manual por Sessão",
-        'config_suggestions': "Sugestões / Suggestions",
+        'config_suggestions': "Sugestões",
         'config_suggestions_on': "Ativadas",
         'config_suggestions_off': "Desabilitadas",
         'config_language': "Idioma / Language",
@@ -535,31 +535,24 @@ async def build_ui():
             display: none !important;
         }
         
-        /* GPU-ACCELERATED PSEUDO-ELEMENT INFINITE GRADIENT FLOW */
-        @keyframes gradient-flow-right {
+        /* CONTINUOUS COFFEE GRADIENT SHIMMER ANIMATION */
+        @keyframes cafe-gradient-move {
             0% {
-                transform: translateX(-50%);
+                background-position: 0% 0%;
             }
             100% {
-                transform: translateX(0%);
+                background-position: 200% 0%;
             }
         }
 
-        html body .q-linear-progress__model {
-            position: relative !important;
-            overflow: hidden !important;
-            background: transparent !important;
-        }
-
-        html body .q-linear-progress__model::after {
-            content: '' !important;
-            position: absolute !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 200% !important;
-            height: 100% !important;
-            background: linear-gradient(90deg, #120c09, #4e3629, #6f4e37, #4e3629, #120c09) !important;
-            animation: gradient-flow-right 3s linear infinite !important;
+        html body .q-linear-progress__model,
+        html body .q-linear-progress__model--determinate {
+            background: linear-gradient(90deg, #1a100a 0%, #4e3629 25%, #875d46 50%, #4e3629 75%, #1a100a 100%) !important;
+            background-size: 200% 100% !important;
+            animation: cafe-gradient-move 2.5s linear infinite !important;
+            will-change: background-position !important;
+            opacity: 1 !important;
+            display: block !important;
         }
         
         /* SKIP BREAK LINK SHORTCUT BUTTON */
@@ -904,10 +897,9 @@ async def build_ui():
             break_input = ui.number(t('config_break'), value=current_break, format='%.0f').classes('w-full mb-2')
             goal_input = ui.number(t('config_goal'), value=current_goal, format='%.0f').classes('w-full mb-2')
             
-            suggestions_switch = ui.switch(
-                t('config_suggestions'),
-                value=current_sugg_enabled
-            ).classes('w-full mb-2 frappe-dark')
+            with ui.row().classes('w-full justify-between items-center mb-2'):
+                ui.label(t('config_suggestions')).classes('text-xs frappe-dark uppercase tracking-wider')
+                suggestions_switch = ui.switch(value=current_sugg_enabled).props('dense dark color=primary')
 
             rotation_mode_input = ui.select(
                 options={True: t('config_rotation_auto'), False: t('config_rotation_manual')},
