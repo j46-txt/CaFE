@@ -536,7 +536,7 @@ async def build_ui():
         }
 
         html body .q-linear-progress__model {
-            background: linear-gradient(90deg, #120c09, #6f4e37, #120c09) !important;
+            background: linear-gradient(90deg, #120c09, #4e3629) !important;
         }
         
         /* SKIP BREAK LINK SHORTCUT BUTTON */
