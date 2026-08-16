@@ -69,7 +69,7 @@ def export_history_csv() -> bytes:
     with database.get_db() as db:
         rows = db.execute('''
             SELECT fs.start_date, fs.start_time, fs.end_date, fs.end_time, 
-                   fs.duration_seconds, fs.timer_mode, s.name as subject_name
+                   fs.duration_seconds, fs.timer_mode, s.name as subject_name, fs.subject_id
             FROM focus_sessions fs
             LEFT JOIN subjects s ON fs.subject_id = s.id
             ORDER BY fs.id DESC
@@ -86,8 +86,13 @@ def export_history_csv() -> bytes:
         except (ValueError, TypeError):
             weekday = 'Unknown'
             
+        if row['subject_id'] is None:
+            subject_display = ""
+        else:
+            subject_display = row['subject_name'] or "Deleted Subject"
+            
         writer.writerow([
-            row['subject_name'] or "Deleted Subject", 
+            subject_display, 
             row['start_date'], 
             row['start_time'], 
             row['end_date'], 
