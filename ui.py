@@ -536,13 +536,18 @@ async def build_ui():
         }
         
         @keyframes gradient-flow-right {
-            0% { background-position: 200% 50%; }
-            100% { background-position: 0% 50%; }
+            0% {
+                background-position: 200% 0%;
+            }
+            100% {
+                background-position: 0% 0%;
+            }
         }
-        .q-linear-progress__model {
-            background: linear-gradient(90deg, #120c09, #6f4e37, #120c09) !important;
-            background-size: 200% 200% !important;
-            animation: gradient-flow-right 3s linear infinite !important;
+
+        html body .q-linear-progress__model {
+            background: linear-gradient(90deg, #120c09, #6f4e37, #ebdcd0, #6f4e37, #120c09) !important;
+            background-size: 200% 100% !important;
+            animation: gradient-flow-right 2.5s linear infinite !important;
         }
         
         /* SKIP BREAK LINK SHORTCUT BUTTON */
