@@ -178,6 +178,8 @@ def rotate_subject() -> None:
 def ensure_daily_rotation() -> None:
     if not settings.get_auto_rotate():
         return
+    if not settings.get_suggestions_enabled():
+        return
     with rotation_lock:
         today_str = datetime.datetime.now().astimezone().strftime('%Y-%m-%d')
         last_date = settings.get_last_rotation_date()
