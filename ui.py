@@ -535,19 +535,30 @@ async def build_ui():
             display: none !important;
         }
         
+        /* GPU-ACCELERATED PSEUDO-ELEMENT INFINITE GRADIENT FLOW */
         @keyframes gradient-flow-right {
             0% {
-                background-position: 0% 0%;
+                transform: translateX(-50%);
             }
             100% {
-                background-position: -200% 0%;
+                transform: translateX(0%);
             }
         }
 
-        html body .q-linear-progress__model,
-        html body .q-linear-progress__model--determinate {
-            background: linear-gradient(90deg, #120c09, #6f4e37, #4e3629, #120c09) !important;
-            background-size: 200% 100% !important;
+        html body .q-linear-progress__model {
+            position: relative !important;
+            overflow: hidden !important;
+            background: transparent !important;
+        }
+
+        html body .q-linear-progress__model::after {
+            content: '' !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 200% !important;
+            height: 100% !important;
+            background: linear-gradient(90deg, #120c09, #4e3629, #6f4e37, #4e3629, #120c09) !important;
             animation: gradient-flow-right 3s linear infinite !important;
         }
         
@@ -893,11 +904,10 @@ async def build_ui():
             break_input = ui.number(t('config_break'), value=current_break, format='%.0f').classes('w-full mb-2')
             goal_input = ui.number(t('config_goal'), value=current_goal, format='%.0f').classes('w-full mb-2')
             
-            suggestions_input = ui.select(
-                options={True: t('config_suggestions_on'), False: t('config_suggestions_off')},
-                value=current_sugg_enabled,
-                label=t('config_suggestions')
-            ).classes('w-full mb-2')
+            suggestions_switch = ui.switch(
+                t('config_suggestions'),
+                value=current_sugg_enabled
+            ).classes('w-full mb-2 frappe-dark')
 
             rotation_mode_input = ui.select(
                 options={True: t('config_rotation_auto'), False: t('config_rotation_manual')},
@@ -948,7 +958,7 @@ async def build_ui():
                     goal_val = 10
                     
                 auto_rotate_val = bool(rotation_mode_input.value)
-                sugg_enabled_val = bool(suggestions_input.value)
+                sugg_enabled_val = bool(suggestions_switch.value)
                 lang_val = str(language_input.value)
 
                 def b_save():
