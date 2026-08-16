@@ -16,8 +16,9 @@ import database
 cached_stats = {'today': 0, 'week': 0, 'total': 0, 'avg_week_hours': 0.0, 'focus_days': 0, 'rolling_14d': 0}
 cached_active_subject = None
 cached_weekly_goal_hours = 10
-cached_auto_rotate = True  # Track dynamic rotation mode state
-cached_language = 'en'     # Track active interface language state
+cached_auto_rotate = True
+cached_suggestions_enabled = True
+cached_language = 'en'
 active_clients = set()
 
 # Thread-safety lock to prevent ASGI render loop desynchronization
@@ -39,6 +40,9 @@ TRANSLATIONS = {
         'config_rotation_mode': "Rotation Mode",
         'config_rotation_auto': "Daily Automatic",
         'config_rotation_manual': "Manual Session-Based",
+        'config_suggestions': "Suggestions",
+        'config_suggestions_on': "Enabled",
+        'config_suggestions_off': "Disabled",
         'config_language': "Language / Idioma",
         'config_reset_stats': "Reset statistics",
         'config_confirm_title': "Are you sure?",
@@ -48,7 +52,7 @@ TRANSLATIONS = {
         'config_save': "Save Changes",
         'config_notify_wiped': "Statistics wiped out.",
         'edit_title': "Edit Suggestions",
-        'edit_placeholder': "Activity name",
+        'edit_placeholder': "Suggestion name",
         'edit_add': "Add",
         'edit_no_items': "[No items defined]",
         'edit_close': "Close Panel",
@@ -88,6 +92,7 @@ TRANSLATIONS = {
         'main_skip_break': "Skip Break »",
         'main_suggestion_today': "Today's suggestion:",
         'main_suggestion_current': "Current suggestion:",
+        'main_suggestions_disabled': "Suggestions disabled",
         'main_define_suggestions': "+ Define Suggestions",
     },
     'pt': {
@@ -101,6 +106,9 @@ TRANSLATIONS = {
         'config_rotation_mode': "Modo de Rotação",
         'config_rotation_auto': "Automático Diário",
         'config_rotation_manual': "Manual por Sessão",
+        'config_suggestions': "Sugestões / Suggestions",
+        'config_suggestions_on': "Ativadas",
+        'config_suggestions_off': "Desabilitadas",
         'config_language': "Idioma / Language",
         'config_reset_stats': "Limpar estatísticas",
         'config_confirm_title': "Tem certeza?",
@@ -109,19 +117,19 @@ TRANSLATIONS = {
         'config_reset': "Excluir",
         'config_save': "Salvar Alterações",
         'config_notify_wiped': "Estatísticas redefinidas.",
-        'edit_title': "Editar Matérias",
-        'edit_placeholder': "Nome da matéria",
+        'edit_title': "Editar Sugestões",
+        'edit_placeholder': "Nome da sugestão",
         'edit_add': "Criar",
-        'edit_no_items': "[Nenhuma matéria definida]",
+        'edit_no_items': "[Nenhuma sugestão definida]",
         'edit_close': "Fechar Painel",
         'help_title': "Informações",
         'help_subtitle': "Consistency and Focus Engine",
         'help_desc': """
             <div class="text-xs frappe-dark mb-4 leading-relaxed" style="text-transform: none !important; display: flex; flex-direction: column; gap: 10px;">
                 <p class="m-0">Este sistema utiliza cronômetros integrados de contagem regressiva (Pomodoro) e contagem progressiva (Cronômetro) como mecanismo para impulsionar o foco e registrar dados de estudo.</p>
-                <p class="m-0">Cada sessão registra e consolida automaticamente no banco de dados local a data, a duração real do foco, a matéria estudada e os horários exatos de início e término.</p>
+                <p class="m-0">Cada sessão registra e consolida automaticamente no banco de dados local a data, a duração real do foco, a sugestão estudada e os horários exatos de início e término.</p>
                 <p class="m-0">A métrica de Ritmo representa a sua média semanal de horas de foco, calculada com base nos últimos 14 dias.</p>
-                <p class="m-0">Você pode cadastrar uma lista de matérias com pesos de probabilidade específicos; o motor de sorteio utiliza um loop baseado em bilhetes para sugerir dinamicamente a matéria da vez.</p>
+                <p class="m-0">Você pode cadastrar uma lista de sugestões com pesos de probabilidade específicos; o motor de sorteio utiliza um loop baseado em bilhetes para definir dinamicamente a sugestão da vez.</p>
                 <p class="m-0">Para proteger sessões de estudo noturnas de interrupções bruscas de rotação, o rodízio automático diário ocorre apenas quando o app é aberto pela primeira vez em um novo dia do calendário.</p>
             </div>
         """,
@@ -131,7 +139,7 @@ TRANSLATIONS = {
         'log_weekly_blueprint': "Atividade Semanal (Gráfico):",
         'log_no_sessions': "[Nenhuma sessão registrada ainda]",
         'log_col_day': "Dia (Data | Semana)",
-        'log_col_sub': "Matéria Estudada",
+        'log_col_sub': "Sugestão Estudada",
         'log_col_time': "Duração",
         'log_close': "Fechar Registro",
         'main_weekly_goal': "Meta Semanal",
@@ -150,7 +158,8 @@ TRANSLATIONS = {
         'main_skip_break': "Pular Pausa »",
         'main_suggestion_today': "Sugestão de hoje:",
         'main_suggestion_current': "Sugestão atual:",
-        'main_define_suggestions': "+ Definir Matérias",
+        'main_suggestions_disabled': "Sugestões desabilitadas",
+        'main_define_suggestions': "+ Definir Sugestões",
     }
 }
 
@@ -162,12 +171,13 @@ def t(key: str) -> str:
 
 def refresh_global_cache():
     """Refreshes all memory caches at once to prevent main thread disk blocking loops."""
-    global cached_stats, cached_active_subject, cached_weekly_goal_hours, cached_auto_rotate, cached_language
+    global cached_stats, cached_active_subject, cached_weekly_goal_hours, cached_auto_rotate, cached_suggestions_enabled, cached_language
     
     new_stats = statistics.get_stats()
     new_subject = subjects.get_active_subject()
     new_hours = settings.get_weekly_goal_hours()
     new_auto_rotate = settings.get_auto_rotate()
+    new_suggestions_enabled = settings.get_suggestions_enabled()
     new_language = settings.get_setting('language', 'en')
     
     with _CACHE_LOCK:
@@ -175,6 +185,7 @@ def refresh_global_cache():
         cached_active_subject = new_subject
         cached_weekly_goal_hours = new_hours
         cached_auto_rotate = new_auto_rotate
+        cached_suggestions_enabled = new_suggestions_enabled
         cached_language = new_language
 
 def global_on_session_complete(
@@ -186,8 +197,9 @@ def global_on_session_complete(
     """Saves or updates focus session record and returns generated/updated session ID."""
     with _CACHE_LOCK:
         current_subject = cached_active_subject
+        sugg_enabled = cached_suggestions_enabled
         
-    subject_id = current_subject.id if current_subject else None
+    subject_id = current_subject.id if (current_subject and sugg_enabled) else None
     end_dt = datetime.datetime.now(datetime.timezone.utc)
     start_dt = start_time or (end_dt - datetime.timedelta(seconds=duration_seconds))
 
@@ -399,20 +411,24 @@ async def build_ui():
             background: transparent !important;
             background-color: transparent !important;
             box-shadow: none !important;
-            border: none !important;
-            align-self: flex-start !important;
+            border: 1px solid #382d26 !important;
+            border-radius: 2px !important;
+            align-self: center !important;
             position: relative !important;
-            top: -1px !important;
-            margin-left: -1px !important;
-            padding: 0 !important;
+            margin-left: 6px !important;
+            padding: 2px 4px !important;
+            min-height: 20px !important;
         }
         html body .edit-pencil-btn .q-icon {
-            color: #4e3629 !important;
-            font-size: 10px !important;
+            color: #59514a !important;
+            font-size: 11px !important;
             transition: color 0.1s ease-in-out;
         }
+        html body .edit-pencil-btn:hover {
+            border-color: #59514a !important;
+        }
         html body .edit-pencil-btn:hover .q-icon {
-            color: #875d46 !important;
+            color: #ebdcd0 !important;
         }
 
         /* INLINE SUGGESTION ROTATE BUTTON */
@@ -864,12 +880,19 @@ async def build_ui():
                 current_break = settings.get_break_minutes()
                 current_goal = cached_weekly_goal_hours
                 current_auto_rotate = cached_auto_rotate
+                current_sugg_enabled = cached_suggestions_enabled
                 current_language = cached_language
             
             pomo_input = ui.number(t('config_focus'), value=current_pomo, format='%.0f').classes('w-full mb-2')
             break_input = ui.number(t('config_break'), value=current_break, format='%.0f').classes('w-full mb-2')
             goal_input = ui.number(t('config_goal'), value=current_goal, format='%.0f').classes('w-full mb-2')
             
+            suggestions_input = ui.select(
+                options={True: t('config_suggestions_on'), False: t('config_suggestions_off')},
+                value=current_sugg_enabled,
+                label=t('config_suggestions')
+            ).classes('w-full mb-2')
+
             rotation_mode_input = ui.select(
                 options={True: t('config_rotation_auto'), False: t('config_rotation_manual')},
                 value=current_auto_rotate,
@@ -919,6 +942,7 @@ async def build_ui():
                     goal_val = 10
                     
                 auto_rotate_val = bool(rotation_mode_input.value)
+                sugg_enabled_val = bool(suggestions_input.value)
                 lang_val = str(language_input.value)
 
                 def b_save():
@@ -926,6 +950,7 @@ async def build_ui():
                     settings.set_setting('break_minutes', break_val)
                     settings.set_setting('weekly_goal_hours', goal_val)
                     settings.set_auto_rotate(auto_rotate_val)
+                    settings.set_suggestions_enabled(sugg_enabled_val)
                     settings.set_setting('language', lang_val)
                     focus_timer.sync_durations()
                     refresh_global_cache()
@@ -1061,7 +1086,7 @@ async def build_ui():
                 summary = [dict(r) for r in summary_rows]
                 
                 rows = db.execute('''
-                    SELECT fs.start_date, fs.duration_seconds, s.name as subject_name
+                    SELECT fs.start_date, fs.duration_seconds, s.name as subject_name, fs.subject_id
                     FROM focus_sessions fs
                     LEFT JOIN subjects s ON fs.subject_id = s.id
                     ORDER BY fs.id DESC LIMIT 50
@@ -1094,7 +1119,11 @@ async def build_ui():
                     
                     for row in rows:
                         duration_str = statistics.format_duration(row['duration_seconds'])
-                        sub_name = row['subject_name'] or "Deleted"
+                        
+                        if row['subject_id'] is None:
+                            sub_name = ""
+                        else:
+                            sub_name = row['subject_name'] or "Deleted"
                         
                         try:
                             dt_obj = datetime.datetime.strptime(row['start_date'], '%Y-%m-%d')
@@ -1166,8 +1195,12 @@ async def build_ui():
 
         with _CACHE_LOCK:
             current_auto_rotate = cached_auto_rotate
+            current_sugg_enabled = cached_suggestions_enabled
         
-        update_text(suggestion_title_label, t('main_suggestion_today') if current_auto_rotate else t('main_suggestion_current'))
+        if not current_sugg_enabled:
+            update_text(suggestion_title_label, t('main_suggestions_disabled'))
+        else:
+            update_text(suggestion_title_label, t('main_suggestion_today') if current_auto_rotate else t('main_suggestion_current'))
 
     def update_display():
         status = focus_timer.state.status
@@ -1177,6 +1210,7 @@ async def build_ui():
             current_subject = cached_active_subject
             current_goal = cached_weekly_goal_hours
             current_auto_rotate = cached_auto_rotate
+            current_sugg_enabled = cached_suggestions_enabled
 
         if status == 'idle':
             start_pause_btn.props("icon=play_arrow")
@@ -1247,7 +1281,6 @@ async def build_ui():
         live_total = current_stats['total'] + active_focus_seconds
         live_rolling_14d = current_stats.get('rolling_14d', 0) + active_focus_seconds
 
-        # Recompute live pace in average weekly hours for the rolling 14-day window
         live_pace_hours = (live_rolling_14d / 3600.0) / 2.0
 
         update_text(week_label, f"{statistics.format_duration(live_week)} / {current_goal}h")
@@ -1259,23 +1292,38 @@ async def build_ui():
             live_focus_days += 1
         update_text(focus_days_label, f"{live_focus_days}{t('main_total_days_suffix')}")
         update_text(today_label, statistics.format_duration(live_today))
-        update_text(suggestion_title_label, t('main_suggestion_today') if current_auto_rotate else t('main_suggestion_current'))
         
         progress_val = min(1.0, live_week / goal_seconds) if goal_seconds > 0 else 0
         if week_progress.value != progress_val:
             week_progress.value = progress_val
 
         if current_subject:
-            update_vis(suggestion_val_label, True)
-            update_vis(edit_suggestion_inline_btn, True)
-            update_vis(rotate_suggestion_inline_btn, True)
             update_vis(add_suggestion_inline_btn, False)
-            update_text(suggestion_val_label, f"{current_subject.name}")
+            update_vis(edit_suggestion_inline_btn, True)
+            
+            if not current_sugg_enabled:
+                update_vis(suggestion_val_label, False)
+                update_vis(rotate_suggestion_inline_btn, False)
+                update_text(suggestion_title_label, t('main_suggestions_disabled'))
+            else:
+                update_vis(suggestion_val_label, True)
+                update_text(suggestion_val_label, f"{current_subject.name}")
+                
+                if current_auto_rotate:
+                    update_text(suggestion_title_label, t('main_suggestion_today'))
+                    update_vis(rotate_suggestion_inline_btn, False)
+                else:
+                    update_text(suggestion_title_label, t('main_suggestion_current'))
+                    update_vis(rotate_suggestion_inline_btn, True)
         else:
             update_vis(suggestion_val_label, False)
             update_vis(edit_suggestion_inline_btn, False)
             update_vis(rotate_suggestion_inline_btn, False)
             update_vis(add_suggestion_inline_btn, True)
+            if not current_sugg_enabled:
+                update_text(suggestion_title_label, t('main_suggestions_disabled'))
+            else:
+                update_text(suggestion_title_label, t('main_suggestion_today') if current_auto_rotate else t('main_suggestion_current'))
 
     await asyncio.get_running_loop().run_in_executor(
         DB_WRITE_EXECUTOR, lambda: (subjects.ensure_daily_rotation(), refresh_global_cache())
@@ -1318,10 +1366,14 @@ async def build_ui():
                     with ui.row().classes('items-center gap-1.5').style('height: 28px; max-height: 28px;'):
                         with _CACHE_LOCK:
                             init_auto_rotate = cached_auto_rotate
+                            init_sugg_enabled = cached_suggestions_enabled
                         
-                        init_label = t('main_suggestion_today') if init_auto_rotate else t('main_suggestion_current')
+                        if not init_sugg_enabled:
+                            init_label = t('main_suggestions_disabled')
+                        else:
+                            init_label = t('main_suggestion_today') if init_auto_rotate else t('main_suggestion_current')
+                            
                         suggestion_title_label = ui.label(init_label).classes('frappe-dark text-sm')
-                        
                         suggestion_val_label = ui.label('').classes('frappe-light uppercase text-sm')
                         
                         rotate_suggestion_inline_btn = ui.button(icon='autorenew', on_click=manual_rotate).props('flat dense size=sm no-ripple').classes('rotate-main-btn')
