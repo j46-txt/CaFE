@@ -79,6 +79,12 @@ def get_auto_rotate() -> bool:
 def set_auto_rotate(enabled: bool) -> None:
     set_setting('auto_rotate', '1' if enabled else '0')
 
+def get_suggestions_enabled() -> bool:
+    return get_setting('suggestions_enabled', '1') == '1'
+
+def set_suggestions_enabled(enabled: bool) -> None:
+    set_setting('suggestions_enabled', '1' if enabled else '0')
+
 def get_last_rotation_date() -> str:
     return get_setting('last_rotation_date', '')
 
